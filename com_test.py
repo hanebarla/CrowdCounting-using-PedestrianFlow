@@ -150,10 +150,10 @@ def main():
 
     torch.backends.cudnn.benchmark = True
 
-    mae, rsme = validate(val_list, model, criterion, device)
+    mae, rsme, pix_mae, pix_rmse = validate(val_list, model, criterion, device)
 
-    print(' * best MAE {mae:.3f} \n best RMSE {rsme:.3f}'
-          .format(mae=mae, rsme=rsme))
+    print(' * best MAE {mae:.3f}, pix MAE {pix_mae:.5f} \n best RMSE {rsme:.3f}, pix RMSE {pix_rmse:.5f}'
+          .format(mae=mae, pix_mae=pix_mae, rsme=rsme, pix_rmse=pix_rmse))
 
 
 def validate(val_list, model, criterion, device):
@@ -168,10 +168,13 @@ def validate(val_list, model, criterion, device):
 
     mae = 0
     rmse = 0
+    pix_mae = []
+    pix_rmse = []
 
     pred = []
     gt = []
     past_output = None
+    pred_list = []
 
     for i, (prev_img, img, post_img, target) in enumerate(val_loader):
         # only use previous frame in inference time, as in real-time application scenario, future frame is not available
@@ -202,7 +205,11 @@ def validate(val_list, model, criterion, device):
         pred_sum = overall.detach().numpy().copy()
 
         if args.StaticFF == 1:
-            normal_dense_gauss = gaussian_filter(pred_sum, 3)
+            if len(pred_list) == 0:
+                normal_dense_gauss = gaussian_filter(pred_sum, 3)
+            else:
+                preded = np.mean(np.stack(pred_list, axis=0), axis=0)
+                normal_dense_gauss = gaussian_filter(preded, 1)
             normal_dense_gauss_mean = np.mean(normal_dense_gauss)
             normal_dense_gauss[normal_dense_gauss<normal_dense_gauss_mean] = 0
             k = 5
@@ -226,7 +233,11 @@ def validate(val_list, model, criterion, device):
         if past_output is None:
             past_output = overall
 
+        pred_list.append(overall.detach().numpy().copy())
         pred_sum = overall.sum().detach().numpy().copy()
+
+        pix_mae.append(mean_absolute_error(target, overall.detach().numpy().copy()))
+        pix_rmse.append(np.sqrt(mean_squared_error(target, overall.detach().numpy().copy())))
 
         pred.append(pred_sum)
         gt.append(np.sum(target))
@@ -236,8 +247,10 @@ def validate(val_list, model, criterion, device):
     #print("target: {}".format(np.array(gt)))
     mae = mean_absolute_error(pred,gt)
     rmse = np.sqrt(mean_squared_error(pred,gt))
+    pix_mae_val = np.mean(np.array(pix_mae))
+    pix_rmse_val = np.mean(np.array(pix_rmse))
 
-    return mae, rmse
+    return mae, rmse, pix_mae_val, pix_rmse_val
 
 if __name__ == "__main__":
     main()
