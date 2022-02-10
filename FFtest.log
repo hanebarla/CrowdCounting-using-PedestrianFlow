@@ -1,0 +1,60 @@
+=======cf_0 activate-relu=======
+You can use 4 GPUs!
+begin val
+ * best MAE 12.224 
+ best RMSE 14.065
+=======cf_0 no_change=======
+You can use 4 GPUs!
+begin val
+ * best MAE 10.454 
+ best RMSE 11.645
+=======cf_0 opt-amsgrad=======
+You can use 4 GPUs!
+begin val
+ * best MAE 51.927 
+ best RMSE 62.956
+=======cf_0.1 activate-relu=======
+You can use 4 GPUs!
+begin val
+ * best MAE 8.060 
+ best RMSE 9.466
+=======cf_0.1 no_change=======
+You can use 4 GPUs!
+begin val
+ * best MAE 16.288 
+ best RMSE 17.727
+=======cf_0.1 opt-amsgrad=======
+You can use 4 GPUs!
+begin val
+ * best MAE 38.875 
+ best RMSE 45.410
+=======cf_0.01 activate-relu=======
+You can use 4 GPUs!
+begin val
+ * best MAE 17.577 
+ best RMSE 20.613
+=======cf_0.01 no_change=======
+You can use 4 GPUs!
+begin val
+ * best MAE 22.874 
+ best RMSE 24.173
+=======cf_0.01 opt-amsgrad=======
+You can use 4 GPUs!
+begin val
+ * best MAE 23.699 
+ best RMSE 29.433
+=======cf_1.0 activate-relu=======
+You can use 4 GPUs!
+begin val
+ * best MAE 13.721 
+ best RMSE 15.180
+=======cf_1.0 no_change=======
+You can use 4 GPUs!
+begin val
+ * best MAE 12.311 
+ best RMSE 14.320
+=======cf_1.0 opt-amsgrad=======
+You can use 4 GPUs!
+begin val
+ * best MAE 6.028 
+ best RMSE 7.917
