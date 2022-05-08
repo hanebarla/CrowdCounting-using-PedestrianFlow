@@ -106,7 +106,7 @@ def main():
     args.decay = 5*1e-4
     # args.decay         = 1e-3
     # args.start_epoch   = 0
-    args.epochs = 30
+    args.epochs = 100
     args.workers = 8
     args.seed = int(time.time())
     dloss_on = not (float(args.myloss) == 0)
