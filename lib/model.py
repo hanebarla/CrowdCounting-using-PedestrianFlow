@@ -1,10 +1,9 @@
 import torch.nn as nn
 import torch
 from torch.nn import functional as F
-from torch.nn.common_types import T
-from torch.nn.modules import activation
 from torchvision import models
 from gradcam import GradCAM
+
 
 class ContextualModule(nn.Module):
     def __init__(self, features, out_features=512, sizes=(1, 2, 3, 6), activate="leaky", do_rate=0.0):
@@ -13,14 +12,14 @@ class ContextualModule(nn.Module):
         self.scales = nn.ModuleList([self._make_scale(features, size) for size in sizes])
         self.bottleneck = nn.Conv2d(features * 2, out_features, kernel_size=1)
         if activate == "leaky":
-            self.relu = nn.LeakyReLU()
+            self.activate = nn.LeakyReLU()
         elif activate == "sigmoid":
-            self.relu = nn.Sigmoid()
+            self.activate = nn.Sigmoid()
         else:
-            self.relu = nn.ReLU()
-        self.weight_net = nn.Conv2d(features,features,kernel_size=1)
+            self.activate = nn.ReLU()
+        self.weight_net = nn.Conv2d(features, features, kernel_size=1)
 
-    def __make_weight(self,feature,scale_feature):
+    def __make_weight(self, feature, scale_feature):
         weight_feature = feature - scale_feature
         return torch.sigmoid(self.weight_net(weight_feature))
 
@@ -33,10 +32,11 @@ class ContextualModule(nn.Module):
         h, w = feats.size(2), feats.size(3)
         # multi_scales = [F.upsample(input=stage(feats), size=(h, w), mode='bilinear') for stage in self.scales]
         multi_scales = [F.interpolate(input=stage(feats), size=(h, w), mode='bilinear', align_corners=False) for stage in self.scales]
-        weights = [self.__make_weight(feats,scale_feature) for scale_feature in multi_scales]
-        overall_features = [(multi_scales[0]*weights[0]+multi_scales[1]*weights[1]+multi_scales[2]*weights[2]+multi_scales[3]*weights[3])/(weights[0]+weights[1]+weights[2]+weights[3])]+ [feats]
+        weights = [self.__make_weight(feats, scale_feature) for scale_feature in multi_scales]
+        overall_features = [(multi_scales[0]*weights[0]+multi_scales[1]*weights[1]+multi_scales[2]*weights[2]+multi_scales[3]*weights[3])/(weights[0]+weights[1]+weights[2]+weights[3])] + [feats]
         bottle = self.bottleneck(torch.cat(overall_features, 1))
-        return self.relu(bottle)
+        return self.activate(bottle)
+
 
 class CANNet2s(nn.Module):
     def __init__(self, load_weights=False, activate="leaky", bn=0, do_rate=0.0):
@@ -48,11 +48,12 @@ class CANNet2s(nn.Module):
         self.backend = make_layers(self.backend_feat, in_channels=1024, batch_norm=True, dilation=True, activate=activate, do_rate=do_rate)
         self.output_layer = nn.Conv2d(64, 10, kernel_size=1)
         if activate == "leaky":
-            self.relu = nn.LeakyReLU()
+            self.activate = nn.LeakyReLU()
         elif activate == "sigmoid":
-            self.relu = nn.Sigmoid()
+            self.activate = nn.Sigmoid()
         else:
-            self.relu = nn.ReLU()
+            self.activate = nn.ReLU()
+        self.relu = nn.ReLU()
         if not load_weights:
             mod = models.vgg16(pretrained=True)
             self._initialize_weights()
@@ -85,6 +86,7 @@ class CANNet2s(nn.Module):
             elif isinstance(m, nn.BatchNorm2d):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
+
 
 def make_layers(cfg, in_channels=3, batch_norm=False, dilation=False, activate="leaky", do_rate=0.0):
     activates = {
@@ -125,20 +127,20 @@ class CANnetGradCAM(GradCAM):
             score = logit[:, logit.max(1)[-1]].squeeze()
         else:
             score = logit[:, class_idx].squeeze()
-            
+
         self.model_arch.zero_grad()
         score.backward(retain_graph=retain_graph)
-        gradients = self.gradients['value'] # dS/dA
-        activations = self.activations['value'] # A
+        gradients = self.gradients['value']  # dS/dA
+        activations = self.activations['value']  # A
         b, k, u, v = gradients.size()
 
         alpha_num = gradients.pow(2)
         alpha_denom = gradients.pow(2).mul(2) + \
-                activations.mul(gradients.pow(3)).view(b, k, u*v).sum(-1, keepdim=True).view(b, k, 1, 1)
+            activations.mul(gradients.pow(3)).view(b, k, u*v).sum(-1, keepdim=True).view(b, k, 1, 1)
         alpha_denom = torch.where(alpha_denom != 0.0, alpha_denom, torch.ones_like(alpha_denom))
 
         alpha = alpha_num.div(alpha_denom+1e-7)
-        positive_gradients = F.relu(score.exp()*gradients) # ReLU(dY/dA) == ReLU(exp(S)*dS/dA))
+        positive_gradients = F.relu(score.exp()*gradients)  # ReLU(dY/dA) == ReLU(exp(S)*dS/dA))
         weights = (alpha*positive_gradients).view(b, k, u*v).sum(-1).view(b, k, 1, 1)
 
         saliency_map = (weights*activations).sum(1, keepdim=True)

@@ -1,7 +1,7 @@
 import os
 from random import shuffle
-from model import CANNet2s, SimpleCNN
-from utils import save_checkpoint, fix_model_state_dict
+from lib.model import CANNet2s, SimpleCNN
+from lib.utils import save_checkpoint, fix_model_state_dict
 
 import torch
 from torch import nn
@@ -41,43 +41,54 @@ dloss_on = False
 def dataset_factory(dlist, arguments, mode="train"):
     if arguments.dataset == "FDST":
         if mode == "train":
-            return dataset.listDataset(dlist, shuffle=True,
-                                       transform=transforms.Compose([
-                                           transforms.ToTensor(),
-                                           transforms.Normalize(
-                                               mean=[0.485, 0.456, 0.406],
-                                               std=[0.229, 0.224, 0.225]),
-                                       ]),
-                                       train=True,
-                                       batch_size=args.batch_size,
-                                       num_workers=args.workers)
+            return dataset.listDataset(
+                dlist,
+                shuffle=True,
+                transform=transforms.Compose([
+                    transforms.ToTensor(),
+                    transforms.Normalize(
+                        mean=[0.485, 0.456, 0.406],
+                        std=[0.229, 0.224, 0.225]
+                    ),
+                ]),
+                train=True,
+                batch_size=args.batch_size,
+                num_workers=args.workers
+            )
         else:
-            return dataset.listDataset(dlist,
-                                       shuffle=False,
-                                       transform=transforms.Compose([
-                                           transforms.ToTensor(),
-                                           transforms.Normalize(
-                                               mean=[0.485, 0.456, 0.406],
-                                               std=[0.229, 0.224, 0.225]),
-                                       ]), train=False)
+            return dataset.listDataset(
+                dlist,
+                shuffle=False,
+                transform=transforms.Compose([
+                    transforms.ToTensor(),
+                    transforms.Normalize(
+                        mean=[0.485, 0.456, 0.406],
+                        std=[0.229, 0.224, 0.225]
+                    ),
+                ]), train=False
+            )
     elif arguments.dataset == "CrowdFlow":
-        return dataset.CrowdDatasets(dlist,
-                                     transform=transforms.Compose([
-                                         transforms.ToTensor(),
-                                         transforms.Normalize(
-                                             mean=[0.485, 0.456, 0.406],
-                                             std=[0.229, 0.224, 0.225])
-                                     ])
-                                     )
+        return dataset.CrowdDatasets(
+            dlist,
+            transform=transforms.Compose([
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    mean=[0.485, 0.456, 0.406],
+                    std=[0.229, 0.224, 0.225]
+                )
+            ])
+        )
     elif arguments.dataset == "venice":
-        return dataset.VeniceDataset(dlist,
-                                     transform=transforms.Compose([
-                                         transforms.ToTensor(),
-                                         transforms.Normalize(
-                                             mean=[0.485, 0.456, 0.406],
-                                             std=[0.229, 0.224, 0.225])
-                                     ])
-                                     )
+        return dataset.VeniceDataset(
+            dlist,
+            transform=transforms.Compose([
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    mean=[0.485, 0.456, 0.406],
+                    std=[0.229, 0.224, 0.225]
+                )
+            ])
+        )
     else:
         raise ValueError
 
@@ -89,18 +100,18 @@ def main():
 
     args = parser.parse_args()
     # args.lr = 1e-4
-    args.batch_size    = 1
-    args.momentum      = 0.95
-    args.decay         = 5*1e-4
+    args.batch_size = 1
+    args.momentum = 0.95
+    args.decay = 5*1e-4
     # args.decay         = 1e-3
     # args.start_epoch   = 0
     args.epochs = 30
     args.workers = 8
     args.seed = int(time.time())
     dloss_on = not (float(args.myloss) == 0)
-    args.pretrained = True if args.start_epoch!=0 else False
+    args.pretrained = True if args.start_epoch != 0 else False
 
-    if args.dataset  == "FDST":
+    if args.dataset == "FDST":
         args.print_freq = 400
         with open(args.train_json, 'r') as outfile:
             train_list = json.load(outfile)
@@ -138,7 +149,7 @@ def main():
 
     torch.cuda.manual_seed(args.seed)
 
-    if os.path.exists(os.path.join(args.savefolder, 'log.txt')) and args.start_epoch==0:
+    if os.path.exists(os.path.join(args.savefolder, 'log.txt')) and args.start_epoch == 0:
         os.remove(os.path.join(args.savefolder, 'log.txt'))
 
     if args.bn != 0 or args.do_rate > 0.0:
@@ -316,7 +327,7 @@ def train(train_list, model, criterion, optimizer, epoch, device):
     print(' * Train Loss {loss:.3f} '
               .format(loss=losses.avg))
     with open(os.path.join(args.savefolder, 'log.txt'), mode='a') as f:
-        f.write(' * Train MAE {mae:.3f} \n * Train Loss {loss:.3f} \n\n'
+        f.write('Train MAE:{mae:.3f} \nTrain Loss:{loss:.3f} \n\n'
               .format(mae=mae, loss=losses.avg))
 
 def validate(val_list, model, criterion, device):
@@ -406,7 +417,7 @@ def validate(val_list, model, criterion, device):
     print(' * Val Loss {loss:.3f} '
               .format(loss=losses.avg))
     with open(os.path.join(args.savefolder, 'log.txt'), mode='a') as f:
-        f.write(' * Val MAE {mae:.3f} \n * Val Loss {loss:.3f} \n\n'
+        f.write('Val MAE:{mae:.3f} \nVal Loss:{loss:.3f} \n\n'
               .format(mae=mae, loss=losses.avg))
 
     return mae

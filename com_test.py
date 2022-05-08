@@ -174,7 +174,6 @@ def validate(val_list, model, criterion, device):
     pred = []
     gt = []
     past_output = None
-    pred_list = []
 
     for i, (prev_img, img, post_img, target) in enumerate(val_loader):
         # only use previous frame in inference time, as in real-time application scenario, future frame is not available
@@ -205,11 +204,7 @@ def validate(val_list, model, criterion, device):
         pred_sum = overall.detach().numpy().copy()
 
         if args.StaticFF == 1:
-            if len(pred_list) == 0:
-                normal_dense_gauss = gaussian_filter(pred_sum, 3)
-            else:
-                preded = np.mean(np.stack(pred_list, axis=0), axis=0)
-                normal_dense_gauss = gaussian_filter(preded, 1)
+            normal_dense_gauss = gaussian_filter(pred_sum, 2)
             normal_dense_gauss_mean = np.mean(normal_dense_gauss)
             normal_dense_gauss[normal_dense_gauss<normal_dense_gauss_mean] = 0
             k = 5
@@ -233,11 +228,10 @@ def validate(val_list, model, criterion, device):
         if past_output is None:
             past_output = overall
 
-        pred_list.append(overall.detach().numpy().copy())
         pred_sum = overall.sum().detach().numpy().copy()
 
-        pix_mae.append(mean_absolute_error(target, overall.detach().numpy().copy()))
-        pix_rmse.append(np.sqrt(mean_squared_error(target, overall.detach().numpy().copy())))
+        pix_mae.append(mean_absolute_error(target.squeeze(), overall.detach().numpy().copy()))
+        pix_rmse.append(np.sqrt(mean_squared_error(target.squeeze(), overall.detach().numpy().copy())))
 
         pred.append(pred_sum)
         gt.append(np.sum(target))
