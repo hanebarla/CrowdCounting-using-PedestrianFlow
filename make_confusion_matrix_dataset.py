@@ -37,7 +37,7 @@ def cross_dataset(args, train_list, val_list, test_list, concat_file_index):
     for file_name in test_list:
         test_file_list.append(os.path.join(args.savefolder, 'Scene_IM0{}.csv'.format(file_name)))
         test_file_list.append(os.path.join(args.savefolder, 'Scene_IM0{}_hDyn.csv'.format(file_name)))
-    csv_file_concat(val_file_list, os.path.join(args.savefolder, '{}_test.csv'.format(concat_file_index)))
+    csv_file_concat(test_file_list, os.path.join(args.savefolder, '{}_test.csv'.format(concat_file_index)))
 
 
 def main(args):
