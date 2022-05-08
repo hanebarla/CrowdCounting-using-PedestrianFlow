@@ -110,7 +110,6 @@ def main():
     args.workers = 8
     args.seed = int(time.time())
     dloss_on = not (float(args.myloss) == 0)
-    pretrained = os.path.isfile(os.path.join(args.savefolder, 'checkpoint.pth.tar'))
 
     if args.dataset == "FDST":
         args.print_freq = 400
@@ -163,7 +162,8 @@ def main():
     elif args.trainmodel == "SimpleCNN":
         model = SimpleCNN()
 
-    if pretrained:
+    # pretrained
+    if os.path.isfile(os.path.join(args.savefolder, 'checkpoint.pth.tar')):
         checkpoint = torch.load(os.path.join(args.savefolder, 'checkpoint.pth.tar'))
         model.load_state_dict(fix_model_state_dict(checkpoint['state_dict']))
         args.start_epoch = checkpoint['epoch']
