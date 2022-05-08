@@ -1,11 +1,8 @@
-from asyncore import write
-from fileinput import filename
 import random
 import csv
 from progress.bar import Bar
 import argparse
 import os
-import pandas as pd
 
 
 def csv_file_concat(file_list, file_name):

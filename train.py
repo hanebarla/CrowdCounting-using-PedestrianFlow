@@ -34,6 +34,7 @@ parser.add_argument('--opt', default="adam")
 parser.add_argument('--activate', default="leaky")
 parser.add_argument('--bn', default=0, type=int)
 parser.add_argument('--do_rate', default=0.0, type=float)
+parser.add_argument('--pretrained', default=0, type=int)
 
 dloss_on = False
 
@@ -109,7 +110,7 @@ def main():
     args.workers = 8
     args.seed = int(time.time())
     dloss_on = not (float(args.myloss) == 0)
-    args.pretrained = True if args.start_epoch != 0 else False
+    pretrained = os.path.isfile(os.path.join(args.savefolder, 'checkpoint.pth.tar'))
 
     if args.dataset == "FDST":
         args.print_freq = 400
@@ -162,9 +163,11 @@ def main():
     elif args.trainmodel == "SimpleCNN":
         model = SimpleCNN()
 
-    if args.pretrained:
+    if pretrained:
         checkpoint = torch.load(os.path.join(args.savefolder, 'checkpoint.pth.tar'))
         model.load_state_dict(fix_model_state_dict(checkpoint['state_dict']))
+        args.start_epoch = checkpoint['epoch']
+        print("Train resumed: {} epoch".format(args.start_epoch))
         try:
             best_prec1 = checkpoint['val']
             print("best val: {}".format(best_prec1))
@@ -175,7 +178,7 @@ def main():
         print("You can use {} GPUs!".format(torch.cuda.device_count()))
         model = torch.nn.DataParallel(model)
     model.to(device)
-    best_prec1 = 23.702
+    best_prec1 = 100
 
     # criterion = nn.MSELoss(size_average=False)
     criterion = nn.MSELoss(reduction='sum')
@@ -200,7 +203,8 @@ def main():
               .format(mae=best_prec1))
         save_checkpoint({
             'state_dict': model.state_dict(),
-            'val': prec1.item()
+            'val': prec1.item(),
+            'epoch': epoch
         }, is_best,
             filename=os.path.join(args.savefolder, 'checkpoint.pth.tar'),
             bestname=os.path.join(args.savefolder, 'model_best.pth.tar'))
