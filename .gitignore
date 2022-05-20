@@ -4,3 +4,4 @@
 *.log
 FFtest*.sh
 .venv/
+*.pyc
