@@ -162,23 +162,21 @@ def main():
     elif args.trainmodel == "SimpleCNN":
         model = SimpleCNN()
 
+    best_prec1 = 100
     # pretrained
     if os.path.isfile(os.path.join(args.savefolder, 'checkpoint.pth.tar')):
         checkpoint = torch.load(os.path.join(args.savefolder, 'checkpoint.pth.tar'))
+        modelbest = torch.load(os.path.join(args.savefolder, 'model_best.pth.tar'))
         model.load_state_dict(fix_model_state_dict(checkpoint['state_dict']))
         args.start_epoch = checkpoint['epoch']
         print("Train resumed: {} epoch".format(args.start_epoch))
-        try:
-            best_prec1 = checkpoint['val']
-            print("best val: {}".format(best_prec1))
-        except KeyError:
-            print("No Key: val")
+        best_prec1 = modelbest['val']
+        print("best val: {}".format(best_prec1))
 
     if torch.cuda.device_count() > 1:
         print("You can use {} GPUs!".format(torch.cuda.device_count()))
         model = torch.nn.DataParallel(model)
     model.to(device)
-    best_prec1 = 100
 
     # criterion = nn.MSELoss(size_average=False)
     criterion = nn.MSELoss(reduction='sum')

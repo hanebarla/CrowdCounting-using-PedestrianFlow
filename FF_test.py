@@ -1,3 +1,5 @@
+from asyncore import write
+import csv
 import os
 from lib.model import CANNet2s
 from lib.utils import save_checkpoint, fix_model_state_dict
@@ -11,7 +13,6 @@ import torch.nn.functional as F
 import numpy as np
 import argparse
 import json
-import cv2
 from lib import dataset
 import time
 
@@ -20,10 +21,10 @@ from scipy.ndimage.filters import gaussian_filter
 
 parser = argparse.ArgumentParser(description='PyTorch CANNet2s')
 
-parser.add_argument('train_json', metavar='TRAIN',
-                    help='path to train json')
 parser.add_argument('val_json', metavar='VAL',
-                    help='path to val json')
+                    help='path to train json')
+parser.add_argument('test_json', metavar='TEST',
+                    help='path to test json')
 parser.add_argument('--dataset', default="FDST")
 parser.add_argument('--load_model', default="checkpoint.pth.tar")
 parser.add_argument('--activate', default="leaky")
@@ -38,47 +39,66 @@ dloss_on = True
 def dataset_factory(dlist, arguments, mode="train"):
     if arguments.dataset == "FDST":
         if mode == "train":
-            return dataset.listDataset(dlist, shuffle=True,
-                                       transform=transforms.Compose([
-                                           transforms.ToTensor(),
-                                           transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                           std=[0.229, 0.224, 0.225]),
-                                       ]),
-                                       train=True,
-                                       batch_size=args.batch_size,
-                                       num_workers=args.workers)
+            return dataset.listDataset(
+                dlist,
+                shuffle=True,
+                transform=transforms.Compose([
+                    transforms.ToTensor(),
+                    transforms.Normalize(
+                        mean=[0.485, 0.456, 0.406],
+                        std=[0.229, 0.224, 0.225]
+                    ),
+                ]),
+                train=True,
+                batch_size=args.batch_size,
+                num_workers=args.workers
+            )
         else:
-            return dataset.listDataset(dlist,
-                                       shuffle=False,
-                                       transform=transforms.Compose([
-                                           transforms.ToTensor(),
-                                           transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                           std=[0.229, 0.224, 0.225]),
-                                       ]), train=False)
+            return dataset.listDataset(
+                dlist,
+                shuffle=False,
+                transform=transforms.Compose([
+                    transforms.ToTensor(),
+                    transforms.Normalize(
+                        mean=[0.485, 0.456, 0.406],
+                        std=[0.229, 0.224, 0.225]
+                    ),
+                ]),
+                train=False
+            )
     elif arguments.dataset == "CrowdFlow":
-        return dataset.CrowdDatasets(dlist,
-                                     transform=transforms.Compose([
-                                         transforms.ToTensor(),
-                                         transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                         std=[0.229, 0.224, 0.225]),
-                                     ])
-                                     )
+        return dataset.CrowdDatasets(
+            dlist,
+            transform=transforms.Compose([
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    mean=[0.485, 0.456, 0.406],
+                    std=[0.229, 0.224, 0.225]
+                ),
+            ])
+            )
     elif arguments.dataset == "venice":
-        return dataset.VeniceDataset(dlist,
-                                     transform=transforms.Compose([
-                                         transforms.ToTensor(),
-                                         transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                         std=[0.229, 0.224, 0.225]),
-                                     ])
-                                     )
+        return dataset.VeniceDataset(
+            dlist,
+            transform=transforms.Compose([
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    mean=[0.485, 0.456, 0.406],
+                    std=[0.229, 0.224, 0.225]
+                ),
+            ])
+        )
     elif arguments.dataset == "points":
-        return dataset.PointsDataset(dlist,
-                                     transform=transforms.Compose([
-                                         transforms.ToTensor(),
-                                         transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                         std=[0.229, 0.224, 0.225])
-                                     ])
-                                     )
+        return dataset.PointsDataset(
+            dlist,
+            transform=transforms.Compose([
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    mean=[0.485, 0.456, 0.406],
+                    std=[0.229, 0.224, 0.225]
+                )
+            ])
+        )
     else:
         raise ValueError
 
@@ -91,35 +111,42 @@ def main():
     args = parser.parse_args()
     args.lr = 1e-4
     args.batch_size = 1
-    args.momentum = 0.95
-    # args.decay = 5*1e-4
     args.decay = 1e-3
     args.start_epoch = 0
     args.epochs = 200
     args.workers = 8
     args.seed = int(time.time())
-    # args.print_freq = 400
     args.print_freq = 10
     args.pretrained = True
+    savefolder = os.path.dirname(args.load_model)
+
+    if args.StaticFF == 1 and args.DynamicFF == 1:
+        savefilename = 'BothFF_result'
+    elif args.StaticFF == 1:
+        savefilename = 'StaticFF_result'
+    elif args.DynamicFF == 1:
+        savefilename = 'DynamicFF_result'
+    else:
+        savefilename = 'noFF_result'
 
     # choose dataset
     if args.dataset == "FDST":
-        with open(args.train_json, 'r') as outfile:
-            train_list = json.load(outfile)
         with open(args.val_json, 'r') as outfile:
             val_list = json.load(outfile)
+        with open(args.test_json, 'r') as outfile:
+            test_list = json.load(outfile)
     elif args.dataset == "CrowdFlow":
-        train_list = args.train_json
         val_list = args.val_json
+        test_list = args.test_json
     elif args.dataset == "venice":
-        train_list = args.train_json
         val_list = args.val_json
+        test_list = args.test_json
     elif args.dataset == "other":
-        train_list = args.train_json
         val_list = args.val_json
+        test_list = args.test_json
     elif args.dataset == "points":
-        train_list = None
-        val_list = args.val_json
+        val_list = None
+        test_list = args.test_json
     else:
         raise ValueError
 
@@ -150,10 +177,19 @@ def main():
 
     torch.backends.cudnn.benchmark = True
 
-    mae, rsme, pix_mae, pix_rmse = validate(val_list, model, criterion, device)
-
+    mae, rmse, pix_mae, pix_rmse = validate(val_list, model, criterion, device)
     print(' * best MAE {mae:.3f}, pix MAE {pix_mae:.5f} \n best RMSE {rsme:.3f}, pix RMSE {pix_rmse:.5f}'
-          .format(mae=mae, pix_mae=pix_mae, rsme=rsme, pix_rmse=pix_rmse))
+          .format(mae=mae, pix_mae=pix_mae, rsme=rmse, pix_rmse=pix_rmse))
+    with open(os.path.join(savefolder, '{}_val.csv'.format(savefilename)), mode='w') as f:
+        writer = csv.writer(f)
+        writer.writerow([mae, rmse, pix_mae, pix_rmse])
+
+    mae, rmse, pix_mae, pix_rmse = validate(test_list, model, criterion, device)
+    print(' * best MAE {mae:.3f}, pix MAE {pix_mae:.5f} \n best RMSE {rsme:.3f}, pix RMSE {pix_rmse:.5f}'
+          .format(mae=mae, pix_mae=pix_mae, rsme=rmse, pix_rmse=pix_rmse))
+    with open(os.path.join(savefolder, '{}_test.csv'.format(savefilename)), mode='w') as f:
+        writer = csv.writer(f)
+        writer.writerow([mae, rmse, pix_mae, pix_rmse])
 
 
 def validate(val_list, model, criterion, device):
@@ -173,6 +209,7 @@ def validate(val_list, model, criterion, device):
 
     pred = []
     gt = []
+
     past_output = None
 
     for i, (prev_img, img, post_img, target) in enumerate(val_loader):
@@ -206,7 +243,7 @@ def validate(val_list, model, criterion, device):
         if args.StaticFF == 1:
             normal_dense_gauss = gaussian_filter(pred_sum, 2)
             normal_dense_gauss_mean = np.mean(normal_dense_gauss)
-            normal_dense_gauss[normal_dense_gauss<normal_dense_gauss_mean] = 0
+            normal_dense_gauss[normal_dense_gauss < normal_dense_gauss_mean] = 0
             k = 5
             staticff = np.exp(k*normal_dense_gauss)
             #print("Output: {}, {}".format(pred_sum.shape, np.max(pred_sum)))
