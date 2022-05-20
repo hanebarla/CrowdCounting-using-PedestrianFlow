@@ -3,3 +3,4 @@
 *.out
 *.log
 FFtest*.sh
+.venv/
