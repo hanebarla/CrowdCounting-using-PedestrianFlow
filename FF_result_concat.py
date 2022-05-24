@@ -38,14 +38,14 @@ for s in scene_set:
         for e in exp:
             val_tmp = []
             test_tmp = []
-            for f in FF_setting:
+            for fs in FF_setting:
                 val_file = os.path.join(
                     '/groups1/gca50095/aca10350zi/habara_exp',
                     'FF_confusion_matrix_{}'.format(s),
                     'CrowdFlow',
                     '{}'.format(m),
                     '{}'.format(e),
-                    '{}val.csv'.format(f)
+                    '{}val.csv'.format(fs)
                 )
                 with open(val_file) as f:
                     reader = csv.reader(f)
@@ -60,7 +60,7 @@ for s in scene_set:
                     'CrowdFlow',
                     '{}'.format(m),
                     '{}'.format(e),
-                    '{}test.csv'.format(f)
+                    '{}test.csv'.format(fs)
                 )
                 with open(test_file) as f:
                     reader = csv.reader(f)
