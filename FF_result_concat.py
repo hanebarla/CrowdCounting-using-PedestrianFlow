@@ -62,7 +62,7 @@ for s in scene_set:
                     '{}'.format(e),
                     '{}test.csv'.format(f)
                 )
-                with open(val_file) as f:
+                with open(test_file) as f:
                     reader = csv.reader(f)
                     lines = [row for row in reader]
 
