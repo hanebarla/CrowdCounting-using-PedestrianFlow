@@ -110,7 +110,7 @@ def demo(args, start, end):
         savefilename = 'DynamicFF_Demo'
     else:
         savefilename = 'noFF_Demo'
-    savefolder = os.path.join(args.nw, savefilename)
+    savefolder = os.path.join(args.normal_weight, savefilename)
 
     # json file contains the test images
     test_json_path = './movie_data.json'
