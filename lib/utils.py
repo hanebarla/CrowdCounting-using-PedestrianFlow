@@ -112,7 +112,7 @@ class CompareOutput():
                     self.axes[h][w].set_aspect('equal')
 
     def save_fig(self, name='images/demo.png'):
-        self.figure.savefig(name, dpi=300)
+        self.figure.savefig(name, dpi=150)
         print("Save {}".format(name))
 
 
