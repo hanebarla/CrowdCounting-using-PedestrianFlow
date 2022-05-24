@@ -177,10 +177,6 @@ def demo(args, start, end):
         img = img.unsqueeze(0)
         prev_img = prev_img.unsqueeze(0)
 
-        result_pp = result_pp.to('cpu').detach().numpy().copy()
-        result_pp = np.transpose(result_pp, (1, 2, 0))
-        result_pp = cv2.resize(result_pp, (80, 45))
-
         with torch.set_grad_enabled(False):
             output_normal = CANnet(prev_img, img)
             # output_normal = sigma(output_normal) - 0.5
