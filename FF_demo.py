@@ -100,7 +100,6 @@ class Datapath():
 def demo(args, start, end):
     test_d_path = args.path
     normal_weights = args.normal_weight
-    direct_weights = args.direct_weight
     num = args.img_num
 
     if args.StaticFF == 1 and args.DynamicFF == 1:
