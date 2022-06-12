@@ -110,7 +110,7 @@ def demo(args, start, end):
         savefilename = 'DynamicFF_Demo'
     else:
         savefilename = 'noFF_Demo'
-    savefolder = os.path.join(os.path.dirname(args.normal_weight), savefilename)
+    savefolder = os.path.join(os.path.dirname(args.normal_weight), 'images', savefilename)
 
     # json file contains the test images
     test_json_path = './movie_data.json'
@@ -142,12 +142,18 @@ def demo(args, start, end):
         'pred',
         'pred_quiver'
     ]
-
     img_dict = {
         img_dict_keys[0]: ('img', None),
         img_dict_keys[1]: ('img', None),
-        img_dict_keys[2]: ('quiver', None),
+        img_dict_keys[2]: ('quiver', None)
     }
+
+    if args.DynamicFF == 1:
+        img_dict_keys.append('Dynamic FF')
+        img_dict['Dynamic FF'] = ('img', None)
+    if args.StaticFF == 1:
+        img_dict_keys.append('Static FF')
+        img_dict['Static FF'] = ('img', None)
 
     DemoImg = CompareOutput(img_dict_keys)
     past_output = None
@@ -228,6 +234,11 @@ def demo(args, start, end):
             img_dict_keys[2]: ('quiver', normal_quiver)
         }
 
+    if args.DynamicFF == 1:
+        img_dict['Dynamic FF'] = ('img', past_output)
+    if args.StaticFF == 1:
+        img_dict['Static FF'] = ('img', staticff)
+
         DemoImg.append_pred(img_dict)
 
         del CANnet
@@ -256,7 +267,7 @@ if __name__ == "__main__":
     parser.add_argument('-ht', '--height', type=int, default=360)  # image height thta input to model
     parser.add_argument('-nw', '--normal_weight')
     parser.add_argument('-num', '--img_num', default=10)
-    parser.add_argument('--dataset', default="FDST")
+    parser.add_argument('--dataset', default="CrowdFlow")
     parser.add_argument('--activate', default="leaky")
     parser.add_argument('--bn', default=0, type=int)
     parser.add_argument('--do_rate', default=0.0, type=float)
