@@ -1,6 +1,7 @@
 import json
 import os
 import random
+from tkinter.tix import DirList
 from matplotlib.pyplot import sci
 import torch
 import numpy as np
@@ -17,7 +18,7 @@ from scipy.ndimage.filters import gaussian_filter
 
 
 class listDataset(Dataset):
-    def __init__(self, root, shape=None, shuffle=True, transform=None, train=False, batch_size=1, num_workers=4):
+    def __init__(self, root, shape=None, transform=None, train=False):
         if train:
             random.shuffle(root)
 
@@ -26,8 +27,6 @@ class listDataset(Dataset):
         self.transform = transform
         self.train = train
         self.shape = shape
-        self.batch_size = batch_size
-        self.num_workers = num_workers
 
     def __len__(self):
         return self.nSamples
@@ -281,3 +280,21 @@ class PointsDataset(Dataset):
             next_img = self.transform(next_img)
 
         return prev_img, now_img, next_img, target_num
+
+
+def get_test_dataset(datakind, datalist):
+    transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize(
+            mean=[0.485, 0.456, 0.406],
+            std=[0.229, 0.224, 0.225])
+    ])
+
+    if datakind == "FDST":
+        return listDataset(datalist, transform=transform)
+    elif datakind == "CrowdFlow":
+        return CrowdDatasets(datalist, transform=transform)
+    elif datakind == "venice":
+        return VeniceDataset(datalist, transform=transform)
+    else:
+        print("dataset name not found")
