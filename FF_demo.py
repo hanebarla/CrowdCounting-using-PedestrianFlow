@@ -168,16 +168,16 @@ def demo(args, start, end):
             sum_staticff = np.sum(staticff[:9,:,:], axis=0) + staticff[9,:,:]*mask_boundry
             img_dict['Static FF'] = ('img', sum_staticff)
 
-            DemoImg.append_pred(img_dict)
+        DemoImg.append_pred(img_dict)
 
-            # del D_CANnet
-            del img
-            del prev_img
-            del output_normal
+        # del D_CANnet
+        del img
+        del prev_img
+        del output_normal
 
-            plt.close()
+        plt.close()
 
-            print("{} done\n".format((i+1)), end="")
+        print("{} done\n".format((i+1)), end="")
 
         DemoImg.plot_img(suptitle=str(args.res))
         DemoImg.save_fig(name=os.path.join(savefolder, 'demo-{}.png'.format(int(i))))
