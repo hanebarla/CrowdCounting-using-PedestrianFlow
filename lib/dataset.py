@@ -298,3 +298,84 @@ def get_test_dataset(datakind, datalist):
         return VeniceDataset(datalist, transform=transform)
     else:
         print("dataset name not found")
+
+
+class Datapath():
+    def __init__(self, json_path=None, datakind=None) -> None:
+        if datakind == "CrowdFlow":
+            with open(json_path) as f:
+                reader = csv.reader(f)
+                self.img_paths = [row for row in reader]
+        else:
+            with open(json_path, 'r') as outfile:
+                self.img_paths = json.load(outfile)
+        self.datakind = datakind
+
+    def __getitem__(self, index):
+        if self.datakind == "FDST":
+            img_path = self.img_paths[i]
+
+            img_folder = os.path.dirname(img_path)
+            img_name = os.path.basename(img_path)
+            index = int(img_name.split('.')[0])
+
+            prev_index = int(max(1,index-5))
+            prev_img_path = os.path.join(img_folder,'%03d.jpg'%(prev_index))
+            print(prev_img_path)
+            prev_img = Image.open(prev_img_path).convert('RGB')
+            img = Image.open(img_path).convert('RGB')
+
+            gt_path = img_path.replace('.jpg','_resize.h5')
+            gt_file = h5py.File(gt_path)
+            target = np.asarray(gt_file['density'])
+
+            return prev_img, img, target
+
+        elif self.datakind == "CrowdFlow":
+            pathlist = self.img_paths[index]
+            t_img_path = pathlist[0]
+            t_person_path = pathlist[1]
+            t_m_img_path = pathlist[2]
+            t_m_person_path = pathlist[3]
+            t_m_t_flow_path = pathlist[4]
+            t_p_img_path = pathlist[5]
+            t_p_person_path = pathlist[6]
+            t_t_p_flow_path = pathlist[7]
+
+            prev_img = Image.open(t_m_img_path).convert('RGB')
+            img = Image.open(t_img_path).convert('RGB')
+
+            target = Image.open(t_person_path).convert('L')
+
+            return prev_img, img, target
+
+        elif self.datakind == "venice":
+            prev_path = self.img_paths[index]["prev"]
+            now_path = self.img_paths[index]["now"]
+            next_path = self.img_paths[index]["next"]
+            target_path = self.img_paths[index]["target"]
+
+            prev_img = Image.open(prev_path).convert('RGB')
+            img = Image.open(now_path).convert('RGB')
+
+            target_dict = scipy.io.loadmat(target_path)
+            target = np.zeros((720, 1280))
+
+            for p in range(target_dict['annotation'].shape[0]):
+                target[int(target_dict['annotation'][p][1]), int(target_dict['annotation'][p][0])] = 1
+
+            target = gaussian_filter(target, 3) * 64
+            target = cv2.resize(target, (80, 45))
+
+            return prev_img, img, target
+
+        elif self.datakind == "animal":
+            prev_path = self.img_paths[index]["prev"]
+            now_path = self.img_paths[index]["now"]
+            next_path = self.img_paths[index]["next"]
+            target = None
+
+            prev_img = Image.open(prev_path).convert('RGB')
+            img = Image.open(now_path).convert('RGB')
+
+            return prev_img, img, target

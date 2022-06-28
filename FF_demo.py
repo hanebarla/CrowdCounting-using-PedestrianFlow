@@ -7,94 +7,15 @@ import torch
 import torchvision
 import argparse
 import csv
+import pickle
 
 from lib.utils import *
 from lib import model
+from lib import dataset
 from torchvision import transforms
 from torch.autograd import Variable
 import scipy.io
 from scipy.ndimage.filters import gaussian_filter
-
-
-class Datapath():
-    def __init__(self, json_path=None, datakind=None) -> None:
-        if datakind == "CrowdFlow":
-            with open(json_path) as f:
-                reader = csv.reader(f)
-                self.img_paths = [row for row in reader]
-        else:
-            with open(json_path, 'r') as outfile:
-                self.img_paths = json.load(outfile)
-        self.datakind = datakind
-
-    def __getitem__(self, index):
-        if self.datakind == "FDST":
-            img_path = self.img_paths[i]
-
-            img_folder = os.path.dirname(img_path)
-            img_name = os.path.basename(img_path)
-            index = int(img_name.split('.')[0])
-
-            prev_index = int(max(1,index-5))
-            prev_img_path = os.path.join(img_folder,'%03d.jpg'%(prev_index))
-            print(prev_img_path)
-            prev_img = Image.open(prev_img_path).convert('RGB')
-            img = Image.open(img_path).convert('RGB')
-
-            gt_path = img_path.replace('.jpg','_resize.h5')
-            gt_file = h5py.File(gt_path)
-            target = np.asarray(gt_file['density'])
-
-            return prev_img, img, target
-
-        elif self.datakind == "CrowdFlow":
-            pathlist = self.img_paths[index]
-            t_img_path = pathlist[0]
-            t_person_path = pathlist[1]
-            t_m_img_path = pathlist[2]
-            t_m_person_path = pathlist[3]
-            t_m_t_flow_path = pathlist[4]
-            t_p_img_path = pathlist[5]
-            t_p_person_path = pathlist[6]
-            t_t_p_flow_path = pathlist[7]
-
-            prev_img = Image.open(t_m_img_path).convert('RGB')
-            img = Image.open(t_img_path).convert('RGB')
-
-            target = Image.open(t_person_path).convert('L')
-
-            return prev_img, img, target
-
-        elif self.datakind == "venice":
-            prev_path = self.img_paths[index]["prev"]
-            now_path = self.img_paths[index]["now"]
-            next_path = self.img_paths[index]["next"]
-            target_path = self.img_paths[index]["target"]
-
-            prev_img = Image.open(prev_path).convert('RGB')
-            img = Image.open(now_path).convert('RGB')
-
-            target_dict = scipy.io.loadmat(target_path)
-            target = np.zeros((720, 1280))
-
-            for p in range(target_dict['annotation'].shape[0]):
-                target[int(target_dict['annotation'][p][1]), int(target_dict['annotation'][p][0])] = 1
-
-            target = gaussian_filter(target, 3) * 64
-            target = cv2.resize(target, (80, 45))
-
-            return prev_img, img, target
-
-        elif self.datakind == "animal":
-            prev_path = self.img_paths[index]["prev"]
-            now_path = self.img_paths[index]["now"]
-            next_path = self.img_paths[index]["next"]
-            target = None
-
-            prev_img = Image.open(prev_path).convert('RGB')
-            img = Image.open(now_path).convert('RGB')
-
-            return prev_img, img, target
 
 
 def demo(args, start, end):
@@ -117,7 +38,7 @@ def demo(args, start, end):
     # the floder to output density map and flow maps
     output_floder = './plot'
 
-    img_paths = Datapath(args.path, args.dataset)
+    img_paths = dataset.Datapath(args.path, args.dataset)
     os.makedirs(savefolder, exist_ok=True)
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -155,11 +76,19 @@ def demo(args, start, end):
         img_dict_keys.append('Static FF')
         img_dict['Static FF'] = ('img', None)
 
-    DemoImg = CompareOutput(img_dict_keys)
     past_output = None
 
+    with open(os.path.join(os.path.dirname(args.normal_weight), "staticff.pickle"), "rb") as f:
+        staticff = pickle.load(f)
+
+    pedestrian_num = []
     for i in range(start, end):
+        DemoImg = CompareOutput(img_dict_keys)
+
         prev_img, img, target = img_paths[i]
+        target_num = np.array(target)
+        pedestrian_num.append(target_num.sum()/target_num.max())
+        print("pedestrian", target_num.sum()/target_num.max())
 
         prev_img = prev_img.resize((640,360))
         img = img.resize((640,360))
@@ -200,22 +129,16 @@ def demo(args, start, end):
         normal_dense = tm_output_to_dense(normal_num.transpose((1, 2, 0)))
 
         if args.StaticFF == 1:
-            normal_dense_gauss = gaussian_filter(normal_dense, 3)
-            normal_dense_gauss_mean = np.mean(normal_dense_gauss)
-            normal_dense_gauss[normal_dense_gauss<normal_dense_gauss_mean] = 0
-            k = 1
-            staticff = np.exp(k*normal_dense_gauss)
-            print("Output: {}, {}".format(normal_dense.shape, np.max(normal_dense)))
-            print("staticFF: {}, {}".format(staticff.shape, np.max(staticff)))
             normal_num *= staticff
 
         normal_quiver = NormalizeQuiver(normal_num)
         normal_num = normal_num.transpose((1, 2, 0))
         normal_dense = tm_output_to_dense(normal_num)
+        normal_dense_gauss = gaussian_filter(normal_dense, 3)
 
         if args.DynamicFF == 1 and past_output is not None:
             d = 0.1
-            past_output = normal_dense
+            past_output = normal_dense_gauss
             normal_dense += d * past_output
 
         if past_output is None:
@@ -234,26 +157,33 @@ def demo(args, start, end):
             img_dict_keys[2]: ('quiver', normal_quiver)
         }
 
-    if args.DynamicFF == 1:
-        img_dict['Dynamic FF'] = ('img', past_output)
-    if args.StaticFF == 1:
-        img_dict['Static FF'] = ('img', staticff)
+        if args.DynamicFF == 1:
+            img_dict['Dynamic FF'] = ('img', past_output)
+        if args.StaticFF == 1:
+            mask_boundry = np.zeros_like(staticff[0, ...])
+            mask_boundry[0,:] = 1.0
+            mask_boundry[-1,:] = 1.0
+            mask_boundry[:,0] = 1.0
+            mask_boundry[:,-1] = 1.0
+            sum_staticff = np.sum(staticff[:9,:,:], axis=0) + staticff[9,:,:]*mask_boundry
+            img_dict['Static FF'] = ('img', sum_staticff)
 
-        DemoImg.append_pred(img_dict)
+            DemoImg.append_pred(img_dict)
 
-        del CANnet
-        # del D_CANnet
-        del img
-        del prev_img
-        del output_normal
+            # del D_CANnet
+            del img
+            del prev_img
+            del output_normal
 
-        plt.close()
+            plt.close()
 
-        print("{} done\n".format((i+1)), end="")
+            print("{} done\n".format((i+1)), end="")
+
+        DemoImg.plot_img(suptitle=str(args.res))
+        DemoImg.save_fig(name=os.path.join(savefolder, 'demo-{}.png'.format(int(i))))
 
     print(len(DemoImg.losses_dict['input']))
-    DemoImg.plot_img(suptitle=str(args.res))
-    DemoImg.save_fig(name=os.path.join(savefolder, 'demo-{}.png'.format(int(start))))
+    print("Scene average pedestrian num: {}".format(sum(pedestrian_num)/len(pedestrian_num)))
 
 
 if __name__ == "__main__":
@@ -298,9 +228,4 @@ if __name__ == "__main__":
 
     # len(pathes)
     print(len(pathes))
-    for i in range(len(pathes)):
-        # try:
-        demo(args, i, i+1)
-        # except Exception as e:
-            # print("{} is Error".format(i))
-            # print(e)
+    demo(args, 0, len(pathes))
