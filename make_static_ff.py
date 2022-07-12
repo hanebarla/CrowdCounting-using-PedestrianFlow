@@ -94,7 +94,7 @@ def validate(val_list, model, criterion, device):
         target_num_gauss = gaussian_filter(target_num, 3)
         whole_target_num.append(target_num_gauss)
 
-    target_ave = np.mean(np.concatenate(whole_target_num), axis=0)
+    target_ave = np.sum(np.concatenate(whole_target_num), axis=0)
     target_ave[target_ave>1] = 1.0
     static_k = 1
     staticff = np.exp(static_k*target_ave)
