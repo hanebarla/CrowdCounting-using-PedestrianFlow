@@ -262,7 +262,7 @@ def validate(val_list, model, staticff, device):
             d_t_prev = gaussian_filter(past_output, 3)
             past_output = BETA * overall + (1 - DELTA) * d_t_prev
             # print("past output {}".format(torch.sum(past_output)))
-            overall *= past_output
+            overall *= gaussian_filter(past_output, 3)
 
         if past_output is None:
             past_output = BETA * overall.detach().numpy().copy()
