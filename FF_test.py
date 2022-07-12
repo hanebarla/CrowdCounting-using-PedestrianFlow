@@ -1,7 +1,7 @@
-from asyncore import write
 import csv
 import os
 from lib.model import CANNet2s
+import pickle
 from lib.utils import save_checkpoint, fix_model_state_dict
 
 import torch
@@ -34,6 +34,11 @@ parser.add_argument('--DynamicFF', default=0, type=int)
 parser.add_argument('--StaticFF', default=0, type=int)
 
 dloss_on = True
+
+# Dynamic Floor Field
+K_D = 0.5
+BETA = 0.9
+DELTA = 0.5
 
 
 def dataset_factory(dlist, arguments, mode="train"):
@@ -173,18 +178,22 @@ def main():
         model = torch.nn.DataParallel(model)
     model.to(device)
 
-    criterion = nn.MSELoss(size_average=False)
+    staticff_file = os.paht.join(os.path.dirname(args.load_model), "staticff.pickle")
+    with open(staticff_file, mode="rb") as f:
+        staticff_num = pickle.load(f)
+    staticff = torch.from_numpy(staticff_num.astype(np.float32)).clone()
+    staticff = staticff.to(device)
 
     torch.backends.cudnn.benchmark = True
 
-    mae, rmse, pix_mae, pix_rmse = validate(val_list, model, criterion, device)
+    mae, rmse, pix_mae, pix_rmse = validate(val_list, model, staticff, device)
     print(' * best MAE {mae:.3f}, pix MAE {pix_mae:.5f} \n best RMSE {rsme:.3f}, pix RMSE {pix_rmse:.5f}'
           .format(mae=mae, pix_mae=pix_mae, rsme=rmse, pix_rmse=pix_rmse))
     with open(os.path.join(savefolder, '{}_val.csv'.format(savefilename)), mode='w') as f:
         writer = csv.writer(f)
         writer.writerow([mae, rmse, pix_mae, pix_rmse])
 
-    mae, rmse, pix_mae, pix_rmse = validate(test_list, model, criterion, device)
+    mae, rmse, pix_mae, pix_rmse = validate(test_list, model, staticff, device)
     print(' * best MAE {mae:.3f}, pix MAE {pix_mae:.5f} \n best RMSE {rsme:.3f}, pix RMSE {pix_rmse:.5f}'
           .format(mae=mae, pix_mae=pix_mae, rsme=rmse, pix_rmse=pix_rmse))
     with open(os.path.join(savefolder, '{}_test.csv'.format(savefilename)), mode='w') as f:
@@ -192,7 +201,7 @@ def main():
         writer.writerow([mae, rmse, pix_mae, pix_rmse])
 
 
-def validate(val_list, model, criterion, device):
+def validate(val_list, model, staticff, device):
     global args
     print('begin val')
     val_dataset = dataset_factory(val_list, args, mode="val")
@@ -241,15 +250,8 @@ def validate(val_list, model, criterion, device):
         pred_sum = overall.detach().numpy().copy()
 
         if args.StaticFF == 1:
-            normal_dense_gauss = gaussian_filter(pred_sum, 2)
-            normal_dense_gauss_mean = np.mean(normal_dense_gauss)
-            normal_dense_gauss[normal_dense_gauss < normal_dense_gauss_mean] = 0
-            k = 5
-            staticff = np.exp(k*normal_dense_gauss)
-            #print("Output: {}, {}".format(pred_sum.shape, np.max(pred_sum)))
-            #print("staticFF: {}, {}".format(staticff.shape, np.max(staticff)))
-            prev_flow *= torch.from_numpy(staticff.astype(np.float32)).clone().to(device)
-            prev_flow_inverse *= torch.from_numpy(staticff.astype(np.float32)).clone().to(device)
+            prev_flow *= staticff
+            prev_flow_inverse *= staticff
 
             reconstruction_from_prev = F.pad(prev_flow[0,0,1:,1:],(0,1,0,1))+F.pad(prev_flow[0,1,1:,:],(0,0,0,1))+F.pad(prev_flow[0,2,1:,:-1],(1,0,0,1))+F.pad(prev_flow[0,3,:,1:],(0,1,0,0))+prev_flow[0,4,:,:]+F.pad(prev_flow[0,5,:,:-1],(1,0,0,0))+F.pad(prev_flow[0,6,:-1,1:],(0,1,1,0))+F.pad(prev_flow[0,7,:-1,:],(0,0,1,0))+F.pad(prev_flow[0,8,:-1,:-1],(1,0,1,0))+prev_flow[0,9,:,:]*mask_boundry
             reconstruction_from_prev_inverse = torch.sum(prev_flow_inverse[0,:9,:,:],dim=0)+prev_flow_inverse[0,9,:,:]*mask_boundry
@@ -257,13 +259,13 @@ def validate(val_list, model, criterion, device):
             overall = ((reconstruction_from_prev+reconstruction_from_prev_inverse)/2.0).type(torch.FloatTensor)
 
         if args.DynamicFF == 1 and past_output is not None:
-            d = 0.2
-            past_output = overall
+            d_t_prev = gaussian_filter(past_output, 3)
+            past_output = BETA * overall + (1 - DELTA) * d_t_prev
             # print("past output {}".format(torch.sum(past_output)))
-            overall += d * past_output
+            overall *= past_output
 
         if past_output is None:
-            past_output = overall
+            past_output = BETA * overall.detach().numpy().copy()
 
         pred_sum = overall.sum().detach().numpy().copy()
 
