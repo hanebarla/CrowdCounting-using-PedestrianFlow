@@ -88,45 +88,24 @@ def validate(val_list, model, criterion, device):
 
     model.eval()
 
-    whole_prev_flow_num = []
+    whole_target_num = []
     for i, (prev_img, img, post_img, target) in enumerate(val_loader):
-        # only use previous frame in inference time, as in real-time application scenario, future frame is not available
-        prev_img = prev_img.to(device, dtype=torch.float)
-        prev_img = Variable(prev_img)
-
-        img = img.to(device, dtype=torch.float)
-        img = Variable(img)
-
-        with torch.no_grad():
-            prev_flow = model(prev_img, img)
-
-        mask_boundry = torch.zeros(prev_flow.shape[2:])
-        mask_boundry[0,:] = 1.0
-        mask_boundry[-1,:] = 1.0
-        mask_boundry[:,0] = 1.0
-        mask_boundry[:,-1] = 1.0
-
-        mask_boundry = Variable(mask_boundry.cuda())
-
-        reconstruction_from_prev = torch.sum(prev_flow[0,:9,:,:], dim=0) + prev_flow[0,9,:,:]*mask_boundry
-        reconstruction_from_prev_num = reconstruction_from_prev.detach().cpu().numpy()
-
-        prev_flow_num = prev_flow.detach().cpu().numpy()
-        prev_flow_num_gauss = gaussian_filter(prev_flow_num, 3)
-        whole_prev_flow_num.append(prev_flow_num_gauss)
+        target_num = target.detach().cpu().numpy()
+        target_num_gauss = gaussian_filter(target_num, 3)
+        whole_target_num.append(target_num_gauss)
 
         if i > 9:
             break
 
-    prev_flow_ave = np.mean(np.concatenate(whole_prev_flow_num), axis=0)
+    target_ave = np.mean(np.concatenate(whole_target_num), axis=0)
     static_k = 1
-    staticff = np.exp(static_k*prev_flow_ave)
+    staticff = np.exp(static_k*target_ave)
 
     input_num = prev_img[0, :, :, :].detach().cpu().numpy()
     input_num = input_num.transpose((1, 2, 0))
     input_num = input_num * np.array([0.229, 0.224, 0.225]) + np.array([0.485, 0.456, 0.406])
     plot_filename = os.path.join(os.path.dirname(args.load_model), "staticff.png")
-    plot_staticflow(input_num, prev_flow_ave, reconstruction_from_prev_num, plot_filename)
+    plot_staticflow(input_num, staticff, plot_filename)
 
     return staticff
 

@@ -2,31 +2,22 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def plot_staticflow(image, flow, dense, filename):
+def plot_staticflow(image, dense, filename):
     cmap = "jet"
-    fig, axes = plt.subplots(3, 4)
+    fig, axes = plt.subplots(2, 1)
     titles = ["inputs",
-              "dense",
-              "up left",
-              "up",
-              "up right",
-              "left",
-              "stay",
-              "right",
-              "down left",
-              "down",
-              "down right",
-              "potential"]
+              "staticFF"]
 
-    for i in range(12):
-        if i == 0:
-            axes[i//4][i%4].imshow(image)
-        elif i == 1:
-            axes[i//4][i%4].imshow(dense, cmap=cmap)
-        else:
-            axes[i//4][i%4].imshow(flow[i-2, ...], cmap=cmap)
+    fig = plt.figure()
+    ax1 = fig.add_subplot(121)
+    ax2 = fig.add_subplot(122)
 
-        axes[i//4][i%4].title.set_text(titles[i])
-        axes[i//4][i%4].axis("off")
+    ax1.imshow(image, cmap=cmap)
+    ax2.imshow(dense, cmap=cmap)
+    ax1.title.set_text(titles[0])
+    ax2.title.set_text(titles[1])
+
+    ax1.axis("off")
+    ax2.axis("off")
 
     fig.savefig(filename, dpi=150)
