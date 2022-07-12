@@ -178,7 +178,7 @@ def main():
         model = torch.nn.DataParallel(model)
     model.to(device)
 
-    staticff_file = os.paht.join(os.path.dirname(args.load_model), "staticff.pickle")
+    staticff_file = os.path.join(os.path.dirname(args.load_model), "staticff.pickle")
     with open(staticff_file, mode="rb") as f:
         staticff_num = pickle.load(f)
     staticff = torch.from_numpy(staticff_num.astype(np.float32)).clone()
