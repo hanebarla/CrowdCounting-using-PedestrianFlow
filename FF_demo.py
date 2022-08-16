@@ -160,13 +160,7 @@ def demo(args, start, end):
         if args.DynamicFF == 1:
             img_dict['Dynamic FF'] = ('img', past_output)
         if args.StaticFF == 1:
-            mask_boundry = np.zeros_like(staticff[0, ...])
-            mask_boundry[0,:] = 1.0
-            mask_boundry[-1,:] = 1.0
-            mask_boundry[:,0] = 1.0
-            mask_boundry[:,-1] = 1.0
-            sum_staticff = np.sum(staticff[:9,:,:], axis=0) + staticff[9,:,:]*mask_boundry
-            img_dict['Static FF'] = ('img', sum_staticff)
+            img_dict['Static FF'] = ('img', staticff)
 
         DemoImg.append_pred(img_dict)
 
