@@ -90,6 +90,8 @@ class CompareOutput():
 
                 if content[0] == 'img':
                     self.axes[h][w].imshow(content[1], cmap="jet")
+                elif content[0] == 'hist':
+                    self.axes[h][w].hist(content[1], bins=10)
                 else:
                     # colors = -np.arctan2(content[1][2], content[1][3])
                     colors = np.sqrt(content[1][2] * content[1][2] + content[1][3] * content[1][3])
@@ -225,7 +227,7 @@ def NormalizeQuiver(output):
         imY[i, :] = np.linspace(0, y, y)
 
     v_leng = np.sqrt(heats_u * heats_u + heats_v * heats_v)
-    v_leng_true = v_leng > np.percentile(v_leng, 30)
+    v_leng_true = v_leng > np.percentile(v_leng, 0.1)
     imX = imX[v_leng_true]
     imY = imY[v_leng_true]
     # heats_u_cut = heats_u[v_leng_true] / v_leng[v_leng_true]

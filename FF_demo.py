@@ -17,6 +17,22 @@ from torch.autograd import Variable
 import scipy.io
 from scipy.ndimage.filters import gaussian_filter
 
+# Dynamic Floor Field
+K_D = 0.5
+BETA = 0.9
+DELTA = 0.5
+
+def reconstruction_forward(prev_flow):
+    mask_boundry = torch.zeros(prev_flow.shape[2:])
+    mask_boundry[0,:] = 1.0
+    mask_boundry[-1,:] = 1.0
+    mask_boundry[:,0] = 1.0
+    mask_boundry[:,-1] = 1.0
+
+    reconstruction_from_prev = F.pad(prev_flow[0,0,1:,1:],(0,1,0,1))+F.pad(prev_flow[0,1,1:,:],(0,0,0,1))+F.pad(prev_flow[0,2,1:,:-1],(1,0,0,1))+F.pad(prev_flow[0,3,:,1:],(0,1,0,0))+prev_flow[0,4,:,:]+F.pad(prev_flow[0,5,:,:-1],(1,0,0,0))+F.pad(prev_flow[0,6,:-1,1:],(0,1,1,0))+F.pad(prev_flow[0,7,:-1,:],(0,0,1,0))+F.pad(prev_flow[0,8,:-1,:-1],(1,0,1,0))+prev_flow[0,9,:,:]*mask_boundry
+
+    return reconstruction_from_prev
+
 
 def demo(args, start, end):
     test_d_path = args.path
@@ -72,9 +88,11 @@ def demo(args, start, end):
     if args.DynamicFF == 1:
         img_dict_keys.append('Dynamic FF')
         img_dict['Dynamic FF'] = ('img', None)
+        img_dict['Dynamic hist'] = ('hist', None)
     if args.StaticFF == 1:
         img_dict_keys.append('Static FF')
         img_dict['Static FF'] = ('img', None)
+        img_dict['Static hist'] = ('hist', None)
 
     past_output = None
 
@@ -113,7 +131,7 @@ def demo(args, start, end):
         prev_img = prev_img.unsqueeze(0)
 
         with torch.set_grad_enabled(False):
-            output_normal = CANnet(prev_img, img)
+            prev_flow = CANnet(prev_img, img)
             # output_normal = sigma(output_normal) - 0.5
 
             """
@@ -125,25 +143,24 @@ def demo(args, start, end):
         input_num = input_num.transpose((1, 2, 0))
         input_num = input_num * np.array([0.229, 0.224, 0.225]) + np.array([0.485, 0.456, 0.406])
 
-        normal_num = output_normal[0, :, :, :].detach().cpu().numpy()
-        normal_dense = tm_output_to_dense(normal_num.transpose((1, 2, 0)))
+        normal_num = prev_flow[0, :, :, :].detach().cpu().numpy()
+        reconstruction_from_prev = reconstruction_forward(prev_flow)
+        normal_dense = reconstruction_from_prev.detach().cpu().numpy()
 
         if args.StaticFF == 1:
             normal_num *= staticff
 
         normal_quiver = NormalizeQuiver(normal_num)
-        normal_num = normal_num.transpose((1, 2, 0))
-        normal_dense = tm_output_to_dense(normal_num)
-        normal_dense_gauss = gaussian_filter(normal_dense, 3)
+        normal_dense = reconstruction_forward(torch.from_numpy(normal_num[np.newaxis, :, :, :].astype(np.float32)).clone())
+        normal_dense_gauss = gaussian_filter(normal_dense[0, :, : ,:], 3)
 
         if args.DynamicFF == 1 and past_output is not None:
-            d = 0.1
-            past_output = normal_dense_gauss
-            normal_dense += d * past_output
+            d_t_prev = gaussian_filter(past_output, 3)
+            past_output = BETA * normal_dense_gauss + (1 - DELTA) * d_t_prev
+            normal_dense_gauss *= gaussian_filter(past_output, 3)
 
         if past_output is None:
-            past_output = normal_dense
-
+            past_output = BETA * normal_dense_gauss.detach().numpy().copy()
         """
         direct_num = output_direct[0, :, :, :].detach().cpu().numpy()
         direct_quiver = NormalizeQuiver(direct_num)
@@ -159,8 +176,10 @@ def demo(args, start, end):
 
         if args.DynamicFF == 1:
             img_dict['Dynamic FF'] = ('img', past_output)
+            img_dict['Dynamic hist'] = ('hist', past_output.reval())
         if args.StaticFF == 1:
             img_dict['Static FF'] = ('img', staticff)
+            img_dict['Static hist'] = ('hist', staticff.reval())
 
         DemoImg.append_pred(img_dict)
 
