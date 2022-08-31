@@ -161,7 +161,7 @@ def demo(args, start, end):
             normal_dense_gauss *= gaussian_filter(past_output, 3)
 
         if past_output is None:
-            past_output = BETA * normal_dense_gauss.detach().numpy().copy()
+            past_output = BETA * normal_dense_gauss
         """
         direct_num = output_direct[0, :, :, :].detach().cpu().numpy()
         direct_quiver = NormalizeQuiver(direct_num)
