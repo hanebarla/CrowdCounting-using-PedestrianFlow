@@ -88,10 +88,12 @@ def demo(args, start, end):
 
     if args.DynamicFF == 1:
         img_dict_keys.append('Dynamic FF')
+        img_dict_keys.append('Dynamic hist')
         img_dict['Dynamic FF'] = ('img', None)
         img_dict['Dynamic hist'] = ('hist', None)
     if args.StaticFF == 1:
         img_dict_keys.append('Static FF')
+        img_dict_keys.append('Static hist')
         img_dict['Static FF'] = ('img', None)
         img_dict['Static hist'] = ('hist', None)
 
