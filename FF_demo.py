@@ -23,6 +23,7 @@ BETA = 0.9
 DELTA = 0.5
 
 def reconstruction_forward(prev_flow, device):
+    prev_flow = prev_flow.to(device)
     mask_boundry = torch.zeros(prev_flow.shape[2:]).to(device)
     mask_boundry[0,:] = 1.0
     mask_boundry[-1,:] = 1.0
@@ -152,7 +153,7 @@ def demo(args, start, end):
 
         normal_quiver = NormalizeQuiver(normal_num)
         normal_dense = reconstruction_forward(torch.from_numpy(normal_num[np.newaxis, :, :, :].astype(np.float32)).clone(), device)
-        normal_dense_gauss = gaussian_filter(normal_dense[0, :, : ,:], 3)
+        normal_dense_gauss = gaussian_filter(normal_dense, 3)
 
         if args.DynamicFF == 1 and past_output is not None:
             d_t_prev = gaussian_filter(past_output, 3)
