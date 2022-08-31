@@ -177,10 +177,10 @@ def demo(args, start, end):
 
         if args.DynamicFF == 1:
             img_dict['Dynamic FF'] = ('img', past_output)
-            img_dict['Dynamic hist'] = ('hist', past_output.reval())
+            img_dict['Dynamic hist'] = ('hist', past_output.ravel())
         if args.StaticFF == 1:
             img_dict['Static FF'] = ('img', staticff)
-            img_dict['Static hist'] = ('hist', staticff.reval())
+            img_dict['Static hist'] = ('hist', staticff.ravel())
 
         DemoImg.append_pred(img_dict)
 
