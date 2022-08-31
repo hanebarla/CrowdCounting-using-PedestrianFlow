@@ -152,7 +152,7 @@ def demo(args, start, end):
             normal_num *= staticff
 
         normal_quiver = NormalizeQuiver(normal_num)
-        normal_dense = reconstruction_forward(torch.from_numpy(normal_num[np.newaxis, :, :, :].astype(np.float32)).clone(), device)
+        normal_dense = reconstruction_forward(torch.from_numpy(normal_num[np.newaxis, :, :, :].astype(np.float32)).clone(), device).to('cpu').detach().numpy().copy()
         normal_dense_gauss = gaussian_filter(normal_dense, 3)
 
         if args.DynamicFF == 1 and past_output is not None:
