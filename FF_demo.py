@@ -189,7 +189,6 @@ def demo(args, start, end):
         # del D_CANnet
         del img
         del prev_img
-        del output_normal
 
         plt.close()
 
