@@ -193,7 +193,7 @@ def main():
         writer = csv.writer(f)
         writer.writerow([mae, rmse, pix_mae, pix_rmse])
 
-    mae, rmse, pix_mae, pix_rmse = validate(test_list, model, staticff, device)
+    mae, rmse, pix_mae, pix_rmse = validate(test_list, model, staticff, device, savefolder)
     print(' * best MAE {mae:.3f}, pix MAE {pix_mae:.5f} \n best RMSE {rsme:.3f}, pix RMSE {pix_rmse:.5f}'
           .format(mae=mae, pix_mae=pix_mae, rsme=rmse, pix_rmse=pix_rmse))
     with open(os.path.join(savefolder, '{}_test.csv'.format(savefilename)), mode='w') as f:
@@ -201,7 +201,7 @@ def main():
         writer.writerow([mae, rmse, pix_mae, pix_rmse])
 
 
-def validate(val_list, model, staticff, device):
+def validate(val_list, model, staticff, device, savefolder=None):
     global args
     print('begin val')
     val_dataset = dataset_factory(val_list, args, mode="val")
@@ -268,6 +268,7 @@ def validate(val_list, model, staticff, device):
             past_output = BETA * overall.detach().numpy().copy()
 
         pred_sum = overall.sum().detach().numpy().copy()
+        np.savez_compressed(os.path.join(savefolder, "{}.npz".format(i)), x=pred_sum)
 
         pix_mae.append(mean_absolute_error(target.squeeze(), overall.detach().numpy().copy()))
         pix_rmse.append(np.sqrt(mean_squared_error(target.squeeze(), overall.detach().numpy().copy())))

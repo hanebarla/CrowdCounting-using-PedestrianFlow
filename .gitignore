@@ -5,3 +5,4 @@
 FFtest*.sh
 .venv/
 *.pyc
+fftest_abci_save.sh
