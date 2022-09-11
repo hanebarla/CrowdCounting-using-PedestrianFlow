@@ -268,7 +268,8 @@ def validate(val_list, model, staticff, device, savefolder=None):
             past_output = BETA * overall.detach().numpy().copy()
 
         pred_sum = overall.sum().detach().numpy().copy()
-        np.savez_compressed(os.path.join(savefolder, "{}.npz".format(i)), x=pred_sum)
+        if savefolder is not None:
+            np.savez_compressed(os.path.join(savefolder, "{}.npz".format(i)), x=pred_sum)
 
         pix_mae.append(mean_absolute_error(target.squeeze(), overall.detach().numpy().copy()))
         pix_rmse.append(np.sqrt(mean_squared_error(target.squeeze(), overall.detach().numpy().copy())))
