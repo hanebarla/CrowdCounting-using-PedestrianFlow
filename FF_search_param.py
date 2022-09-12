@@ -135,7 +135,7 @@ def demo(args, start, end):
         input_num = input_num.transpose((1, 2, 0))
         input_num = input_num * np.array([0.229, 0.224, 0.225]) + np.array([0.485, 0.456, 0.406])
 
-        normal_dense = np.load(os.path.join(args.pre_predict, "{}.npz".format(i)))["x"]
+        normal_dense = np.load(os.path.join(os.path.dirname(args.normal_weight), "{}.npz".format(i)))["x"]
 
         if args.StaticFF == 1:
             normal_dense *= staticff
@@ -205,7 +205,6 @@ if __name__ == "__main__":
     parser.add_argument('--cond2res', default="Cond2Res.json")
     parser.add_argument('--res', default=None)
     parser.add_argument('--imageCond', default=None)
-    parser.add_argument('--pre_predict', default=None)
     parser.add_argument('--DynamicFF', default=0, type=int)
     parser.add_argument('--StaticFF', default=0, type=int)
 
