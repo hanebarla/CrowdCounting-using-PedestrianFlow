@@ -77,13 +77,11 @@ def demo(args, start, end):
 
     img_dict_keys = [
         'input',
-        'pred',
-        'pred_quiver'
+        'pred'
     ]
     img_dict = {
         img_dict_keys[0]: ('img', None),
-        img_dict_keys[1]: ('img', None),
-        img_dict_keys[2]: ('quiver', None)
+        img_dict_keys[1]: ('img', None)
     }
 
     if args.DynamicFF == 1:
@@ -133,29 +131,15 @@ def demo(args, start, end):
         img = img.unsqueeze(0)
         prev_img = prev_img.unsqueeze(0)
 
-        with torch.set_grad_enabled(False):
-            if args.pre_predict is None:
-                prev_flow = CANnet(prev_img, img)
-            # output_normal = sigma(output_normal) - 0.5
-
-            """
-            output_direct = D_CANnet(prev_img, img)
-            # output_direct = sigma(output_direct) - 0.5
-            """
-
         input_num = prev_img[0, :, :, :].detach().cpu().numpy()
         input_num = input_num.transpose((1, 2, 0))
         input_num = input_num * np.array([0.229, 0.224, 0.225]) + np.array([0.485, 0.456, 0.406])
 
-        normal_num = prev_flow[0, :, :, :].detach().cpu().numpy()
-        reconstruction_from_prev = reconstruction_forward(prev_flow, device)
-        normal_dense = reconstruction_from_prev.detach().cpu().numpy()
+        normal_dense = np.load(os.path.join(args.pre_predict, "{}.npz".format(i)))
 
         if args.StaticFF == 1:
-            normal_num *= staticff
+            normal_dense *= staticff
 
-        normal_quiver = NormalizeQuiver(normal_num)
-        normal_dense = reconstruction_forward(torch.from_numpy(normal_num[np.newaxis, :, :, :].astype(np.float32)).clone(), device).to('cpu').detach().numpy().copy()
         normal_dense_gauss = gaussian_filter(normal_dense, 3)
 
         if args.DynamicFF == 1 and past_output is not None:
@@ -175,7 +159,6 @@ def demo(args, start, end):
         img_dict = {
             img_dict_keys[0]: ('img', input_num),
             img_dict_keys[1]: ('img', normal_dense),
-            img_dict_keys[2]: ('quiver', normal_quiver)
         }
 
         if args.DynamicFF == 1:
