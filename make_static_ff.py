@@ -97,7 +97,8 @@ def validate(val_list, model, criterion, device):
     target_ave = np.sum(np.concatenate(whole_target_num), axis=0)
     target_ave[target_ave>1] = 1.0
     static_k = 1
-    staticff = np.exp(static_k*target_ave)
+    # staticff = np.exp(static_k*target_ave)
+    staticff = static_k*target_ave
 
     input_num = prev_img[0, :, :, :].detach().cpu().numpy()
     input_num = input_num.transpose((1, 2, 0))
