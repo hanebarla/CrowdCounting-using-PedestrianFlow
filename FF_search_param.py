@@ -135,7 +135,7 @@ def demo(args, start, end):
         input_num = input_num.transpose((1, 2, 0))
         input_num = input_num * np.array([0.229, 0.224, 0.225]) + np.array([0.485, 0.456, 0.406])
 
-        normal_dense = np.load(os.path.join(os.path.dirname(args.normal_weight), "{}.npz".format(i)))["x"]
+        normal_dense = np.load(os.path.join(os.path.dirname(args.normal_weight),"output", "{}.npz".format(i)))["x"]
 
         if args.StaticFF == 1:
             normal_dense *= staticff
