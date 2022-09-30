@@ -38,7 +38,7 @@ def reconstruction_forward(prev_flow, device):
 
 
 def search(args):
-    scene_num = 20
+    scene_num = 50
     normal_weights = args.normal_weight
     if args.StaticFF == 1 and args.DynamicFF == 1:
         savefilename = 'BothFF_Demo'
@@ -326,4 +326,5 @@ if __name__ == "__main__":
     # len(pathes)
     print(len(pathes))
     static_param, dynamic_param = search(args)
+    print("best StaticFF param: {}, best DynamicFF param: {}".format(static_param, dynamic_param))
     main(args, 0, len(pathes), static_param, dynamic_param)
