@@ -86,6 +86,7 @@ def search(args):
         for i_s, s in enumerate(static_params):
             if args.StaticFF != 1 and i_s > 0:
                 continue
+            print("===== ", d, s, " =====")
             tmp_output_nums = []
             for i in range(scene_num):
                 prev_img, img, target = img_paths[i]
