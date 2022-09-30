@@ -8,6 +8,7 @@ import torchvision
 import argparse
 import csv
 import pickle
+import random
 
 from lib.utils import *
 from lib import model
@@ -16,6 +17,7 @@ from torchvision import transforms
 from torch.autograd import Variable
 import scipy.io
 from scipy.ndimage.filters import gaussian_filter
+from sklearn.metrics import mean_squared_error, mean_absolute_error
 
 # Dynamic Floor Field
 K_D = 0.5
@@ -35,7 +37,99 @@ def reconstruction_forward(prev_flow, device):
     return reconstruction_from_prev
 
 
-def demo(args, start, end):
+def search(args):
+    scene_num = 20
+    normal_weights = args.normal_weight
+    if args.StaticFF == 1 and args.DynamicFF == 1:
+        savefilename = 'BothFF_Demo'
+    elif args.StaticFF == 1:
+        savefilename = 'StaticFF_Demo'
+    elif args.DynamicFF == 1:
+        savefilename = 'DynamicFF_Demo'
+    else:
+        savefilename = 'noFF_Demo'
+    savefolder = os.path.join(os.path.dirname(args.normal_weight), 'images', savefilename)
+
+    img_paths = dataset.Datapath(args.path, args.dataset)
+
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+    if args.bn != 0 or args.do_rate > 0.0:
+        load_weight = True
+    else:
+        load_weight = False
+    CANnet = model.CANNet2s(load_weights=load_weight, activate=args.activate, bn=args.bn, do_rate=args.do_rate)
+    CANnet.to(device)
+    CANnet.load_state_dict(fix_model_state_dict(torch.load(normal_weights)['state_dict']))
+    CANnet.eval()
+
+    transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225])
+    ])
+    past_output = None
+
+    with open(os.path.join(os.path.dirname(args.normal_weight), "staticff.pickle"), "rb") as f:
+        staticff = pickle.load(f)
+
+    target_nums = []
+    dynamic_param = 0
+    static_param = 0
+    mae = None
+
+    dynamic_params = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5]
+    static_params = [0.8, 0.9, 1.0, 1.1, 1.2]
+
+    for i_d, d in enumerate(dynamic_params):
+        if args.DynamicFF != 1 and i_d > 0:
+            continue
+        for i_s, s in enumerate(static_params):
+            if args.StaticFF != 1 and i_s > 0:
+                continue
+            tmp_output_nums = []
+            for i in range(scene_num):
+                prev_img, img, target = img_paths[i]
+                target_num = np.array(target)
+
+                if len(target_nums) < scene_num:
+                    target_nums.append(target_num.sum())
+
+                normal_dense = np.load(os.path.join(os.path.dirname(args.normal_weight), "output", "{}.npz".format(i)))["x"]
+
+                if args.StaticFF == 1:
+                    normal_dense *= s*staticff
+
+                normal_dense_gauss = gaussian_filter(normal_dense, 3)
+
+                if args.DynamicFF == 1 and past_output is not None:
+                    d_t_prev = gaussian_filter(past_output, 3)
+                    past_output = BETA * normal_dense_gauss + (1 - DELTA) * d_t_prev
+                    normal_dense *= gaussian_filter(d * past_output, 3)
+
+                if past_output is None:
+                    past_output = BETA * normal_dense_gauss
+
+                tmp_output_nums.append(normal_dense.sum())
+
+            tmp_mae = mean_absolute_error(target_nums, tmp_output_nums)
+            if mae is None:
+                mae = tmp_mae
+                dynamic_param = d
+                static_param = s
+            else:
+                if tmp_mae < mae:
+                    mae = tmp_mae
+                    dynamic_param = d
+                    static_param = s
+
+    with open(os.path.join(savefolder, 'ff_param.csv'), mode='w') as f:
+        writer = csv.writer(f)
+        writer.writerow([static_param, dynamic_param])
+
+    return static_param, dynamic_param
+
+
+def main(args, start, end, static_param, dynamic_param):
     test_d_path = args.path
     normal_weights = args.normal_weight
     num = args.img_num
@@ -106,8 +200,10 @@ def demo(args, start, end):
 
         prev_img, img, target = img_paths[i]
         target_num = np.array(target)
-        pedestrian_num.append(target_num.sum()/target_num.max())
-        print("pedestrian", target_num.sum()/target_num.max())
+        # pedestrian_num.append(target_num.sum()/target_num.max())
+        # print("pedestrian", target_num.sum()/target_num.max())
+        pedestrian_num.append(target_num.sum())
+        print("pedestrian", target_num.sum())
 
         prev_img = prev_img.resize((640,360))
         img = img.resize((640,360))
@@ -138,14 +234,15 @@ def demo(args, start, end):
         normal_dense = np.load(os.path.join(os.path.dirname(args.normal_weight),"output", "{}.npz".format(i)))["x"]
 
         if args.StaticFF == 1:
-            normal_dense *= staticff
+            normal_dense *= static_param*staticff
 
         normal_dense_gauss = gaussian_filter(normal_dense, 3)
 
         if args.DynamicFF == 1 and past_output is not None:
             d_t_prev = gaussian_filter(past_output, 3)
             past_output = BETA * normal_dense_gauss + (1 - DELTA) * d_t_prev
-            normal_dense_gauss *= gaussian_filter(past_output, 3)
+            # normal_dense_gauss *= gaussian_filter(past_output, 3)
+            normal_dense *= gaussian_filter(dynamic_param*past_output, 3)
 
         if past_output is None:
             past_output = BETA * normal_dense_gauss
@@ -227,4 +324,5 @@ if __name__ == "__main__":
 
     # len(pathes)
     print(len(pathes))
-    demo(args, 0, len(pathes))
+    static_param, dynamic_param = search(args)
+    main(args, 0, len(pathes), static_param, dynamic_param)

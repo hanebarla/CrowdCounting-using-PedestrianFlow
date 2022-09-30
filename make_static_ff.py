@@ -29,6 +29,7 @@ parser.add_argument('--load_model', default="checkpoint.pth.tar")
 parser.add_argument('--activate', default="leaky")
 
 dloss_on = True
+STATIC_K = 1
 
 
 def main():
@@ -96,9 +97,8 @@ def validate(val_list, model, criterion, device):
 
     target_ave = np.sum(np.concatenate(whole_target_num), axis=0)
     target_ave[target_ave>1] = 1.0
-    static_k = 1
     # staticff = np.exp(static_k*target_ave)
-    staticff = static_k*target_ave
+    staticff = STATIC_K*target_ave
 
     input_num = prev_img[0, :, :, :].detach().cpu().numpy()
     input_num = input_num.transpose((1, 2, 0))
@@ -107,6 +107,7 @@ def validate(val_list, model, criterion, device):
     plot_staticflow(input_num, staticff, plot_filename)
 
     return staticff
+
 
 if __name__ == "__main__":
     main()
