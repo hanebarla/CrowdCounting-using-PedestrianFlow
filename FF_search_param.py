@@ -69,7 +69,7 @@ def search(args):
     ])
     past_output = None
 
-    with open(os.path.join(os.path.dirname(args.normal_weight), "staticff.pickle"), "rb") as f:
+    with open(os.path.join(os.path.dirname(args.normal_weight), "staticff_val.pickle"), "rb") as f:
         staticff = pickle.load(f)
 
     target_nums = []
@@ -192,7 +192,7 @@ def main(args, start, end, static_param, dynamic_param):
 
     past_output = None
 
-    with open(os.path.join(os.path.dirname(args.normal_weight), "staticff.pickle"), "rb") as f:
+    with open(os.path.join(os.path.dirname(args.normal_weight), "staticff_val.pickle"), "rb") as f:
         staticff = pickle.load(f)
 
     pedestrian_num = []

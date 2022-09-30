@@ -103,7 +103,7 @@ def validate(val_list, model, criterion, device):
     input_num = prev_img[0, :, :, :].detach().cpu().numpy()
     input_num = input_num.transpose((1, 2, 0))
     input_num = input_num * np.array([0.229, 0.224, 0.225]) + np.array([0.485, 0.456, 0.406])
-    plot_filename = os.path.join(os.path.dirname(args.load_model), "staticff.png")
+    plot_filename = os.path.join(os.path.dirname(args.load_model), "staticff_{}.png".format(args.mode))
     plot_staticflow(input_num, staticff, plot_filename)
 
     return staticff
