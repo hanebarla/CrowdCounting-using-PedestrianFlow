@@ -27,6 +27,7 @@ parser.add_argument('val_json', metavar='VAL',
 parser.add_argument('--dataset', default="FDST")
 parser.add_argument('--load_model', default="checkpoint.pth.tar")
 parser.add_argument('--activate', default="leaky")
+parser.add_argument('--mode', default="test", choices=["val", "test"])
 
 dloss_on = True
 STATIC_K = 1
@@ -74,8 +75,7 @@ def main():
     criterion = nn.MSELoss(size_average=False)
 
     staticff = validate(val_list, model, criterion, device)
-
-    picklefile = os.path.join(os.path.dirname(args.load_model), "staticff.pickle")
+    picklefile = os.path.join(os.path.dirname(args.load_model), "staticff_{}.pickle".format(args.mode))
     with open(picklefile, "wb") as f:
         pickle.dump(staticff, f)
 
