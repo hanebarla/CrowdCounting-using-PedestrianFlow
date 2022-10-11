@@ -278,8 +278,8 @@ def main(args, start, end, static_param, dynamic_param):
 
         DemoImg.plot_img(suptitle=str(args.res))
         DemoImg.save_fig(name=os.path.join(savefolder, 'demo-{}.png'.format(int(i))))
-        pix_mae.append(mean_absolute_error(target.squeeze(), normal_dense))
-        pix_rmse.append(np.sqrt(mean_squared_error(target.squeeze(), normal_dense)))
+        pix_mae.append(mean_absolute_error(np.squeeze(target), normal_dense))
+        pix_rmse.append(np.sqrt(mean_squared_error(np.squeeze(target), normal_dense)))
 
         pred_scene.append(np.sum(normal_dense))
         gt.append(np.sum(target))
