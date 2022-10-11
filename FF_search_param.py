@@ -79,7 +79,7 @@ def search(args):
     static_param = 0
     mae = None
 
-    dynamic_params = [1.0, 2, 5, 10, 20, 50, 100]
+    dynamic_params = [1.0, 2.0, 5.0, 10, 20, 50, 100]
     static_params = [0.8, 0.9, 1.0, 1.1, 1.2]
 
     for i_d, d in enumerate(dynamic_params):
@@ -256,10 +256,10 @@ def main(args, start, end, static_param, dynamic_param):
 
         if args.DynamicFF == 1:
             img_dict['Dynamic FF'] = ('img', past_output)
-            img_dict['Dynamic hist'] = ('hist', past_output.ravel())
+            img_dict['Dynamic hist'] = ('hist', dynamic_param*past_output.ravel())
         if args.StaticFF == 1:
             img_dict['Static FF'] = ('img', staticff)
-            img_dict['Static hist'] = ('hist', staticff.ravel())
+            img_dict['Static hist'] = ('hist', static_param*staticff.ravel())
 
         DemoImg.append_pred(img_dict)
 
