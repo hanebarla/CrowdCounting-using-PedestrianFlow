@@ -346,7 +346,8 @@ class Datapath():
             img = Image.open(t_img_path).convert('RGB')
 
             target = Image.open(t_person_path).convert('L')
-            target.resize((80, 45))
+            target = target.resize((80, 45))
+            target = np.array(target) / 255
 
             return prev_img, img, target
 
