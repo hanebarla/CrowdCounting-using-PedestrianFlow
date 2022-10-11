@@ -97,7 +97,7 @@ def search(args):
                 if len(target_nums) < scene_num:
                     target_nums.append(target_num.sum())
 
-                normal_dense = np.load(os.path.join(os.path.dirname(args.normal_weight), "output", "{}.npz".format(i)))["x"]
+                normal_dense = np.load(os.path.join(os.path.dirname(args.normal_weight), "output_val", "{}.npz".format(i)))["x"]
 
                 if args.StaticFF == 1:
                     normal_dense *= s*staticff
