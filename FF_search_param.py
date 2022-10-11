@@ -79,7 +79,7 @@ def search(args):
     static_param = 0
     mae = None
 
-    dynamic_params = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    dynamic_params = [1.0, 2, 5, 10, 20, 50, 100]
     static_params = [0.8, 0.9, 1.0, 1.1, 1.2]
 
     for i_d, d in enumerate(dynamic_params):
