@@ -39,7 +39,7 @@ def reconstruction_forward(prev_flow, device):
 
 
 def search(args):
-    scene_num = 50
+    scene_num = 30
     normal_weights = args.normal_weight
     if args.StaticFF == 1 and args.DynamicFF == 1:
         savefilename = 'BothFF_Demo'
