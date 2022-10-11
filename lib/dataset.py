@@ -346,6 +346,7 @@ class Datapath():
             img = Image.open(t_img_path).convert('RGB')
 
             target = Image.open(t_person_path).convert('L')
+            target.resize((80, 45))
 
             return prev_img, img, target
 
