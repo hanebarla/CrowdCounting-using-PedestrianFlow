@@ -345,9 +345,9 @@ class Datapath():
             prev_img = Image.open(t_m_img_path).convert('RGB')
             img = Image.open(t_img_path).convert('RGB')
 
-            target = Image.open(t_person_path).convert('L')
-            target = target.resize((80, 45))
-            target = np.array(target) / 255
+            target = cv2.imread(t_person_path, 0)
+            target = target / np.max(target)
+            target = cv2.resize(target, (80, 45), interpolation=cv2.INTER_CUBIC)  # width, height
 
             return prev_img, img, target
 
