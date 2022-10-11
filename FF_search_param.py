@@ -39,12 +39,6 @@ def reconstruction_forward(prev_flow, device):
 
 
 def search(args):
-    savefolder = os.path.join(os.path.dirname(args.normal_weight), 'images', savefilename)
-    # if os.path.isfile(os.path.join(savefolder, 'ff_param.csv')):
-    #     with open(os.path.join(savefolder, 'ff_param.csv')) as f:
-    #         reader = csv.reader(f)
-    #         static_param, dynamic_param = reader[0][0], reader[0][1]
-    #         return static_param, dynamic_param
     scene_num = 50
     normal_weights = args.normal_weight
     if args.StaticFF == 1 and args.DynamicFF == 1:
@@ -55,6 +49,12 @@ def search(args):
         savefilename = 'DynamicFF_Demo'
     else:
         savefilename = 'noFF_Demo'
+    savefolder = os.path.join(os.path.dirname(args.normal_weight), 'images', savefilename)
+    # if os.path.isfile(os.path.join(savefolder, 'ff_param.csv')):
+    #     with open(os.path.join(savefolder, 'ff_param.csv')) as f:
+    #         reader = csv.reader(f)
+    #         static_param, dynamic_param = reader[0][0], reader[0][1]
+    #         return static_param, dynamic_param
 
     img_paths = dataset.Datapath(args.val_path, args.dataset)
 
