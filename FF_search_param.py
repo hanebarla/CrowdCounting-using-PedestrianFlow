@@ -56,7 +56,7 @@ def search(args):
     #         static_param, dynamic_param = reader[0][0], reader[0][1]
     #         return static_param, dynamic_param
 
-    img_paths = dataset.Datapath(args.val_path, args.dataset)
+    img_paths = dataset.CrowdDatasets(args.val_path, args.dataset)
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -147,7 +147,7 @@ def main(args, start, end, static_param, dynamic_param):
         savefilename = 'noFF_Demo'
     savefolder = os.path.join(os.path.dirname(args.normal_weight), 'images', savefilename)
 
-    img_paths = dataset.Datapath(args.test_path, args.dataset)
+    img_paths = dataset.CrowdDatasets(args.test_path, args.dataset)
     os.makedirs(savefolder, exist_ok=True)
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")

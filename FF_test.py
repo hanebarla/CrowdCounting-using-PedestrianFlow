@@ -192,7 +192,7 @@ def main():
 
     torch.backends.cudnn.benchmark = True
 
-    mae, rmse, pix_mae, pix_rmse = validate(val_list, model, staticff, device)
+    mae, rmse, pix_mae, pix_rmse = validate(val_list, model, staticff, device, static_param=static_param, dynamic_param=dynamic_param)
     print(' * best MAE {mae:.3f}, pix MAE {pix_mae:.5f} \n best RMSE {rsme:.3f}, pix RMSE {pix_rmse:.5f}'
           .format(mae=mae, pix_mae=pix_mae, rsme=rmse, pix_rmse=pix_rmse))
     with open(os.path.join(savefolder, '{}_val.csv'.format(savefilename)), mode='w') as f:
