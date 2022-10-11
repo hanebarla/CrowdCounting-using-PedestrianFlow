@@ -92,6 +92,8 @@ def search(args):
             tmp_output_nums = []
             for i in range(scene_num):
                 prev_img, img, target = img_paths[i]
+                target = gaussian_filter(target, 3) * 64
+                target = cv2.resize(target, (80, 45))
                 target_num = np.array(target)
 
                 if len(target_nums) < scene_num:
@@ -200,6 +202,8 @@ def main(args, start, end, static_param, dynamic_param):
         DemoImg = CompareOutput(img_dict_keys)
 
         prev_img, img, target = img_paths[i]
+        target = gaussian_filter(target, 3) * 64
+        target = cv2.resize(target, (80, 45))
         target_num = np.array(target)
         # pedestrian_num.append(target_num.sum()/target_num.max())
         # print("pedestrian", target_num.sum()/target_num.max())
