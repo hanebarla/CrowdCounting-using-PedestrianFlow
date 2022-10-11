@@ -1,3 +1,4 @@
+from genericpath import isfile
 import os
 import json
 import cv2
@@ -38,6 +39,12 @@ def reconstruction_forward(prev_flow, device):
 
 
 def search(args):
+    savefolder = os.path.join(os.path.dirname(args.normal_weight), 'images', savefilename)
+    # if os.path.isfile(os.path.join(savefolder, 'ff_param.csv')):
+    #     with open(os.path.join(savefolder, 'ff_param.csv')) as f:
+    #         reader = csv.reader(f)
+    #         static_param, dynamic_param = reader[0][0], reader[0][1]
+    #         return static_param, dynamic_param
     scene_num = 50
     normal_weights = args.normal_weight
     if args.StaticFF == 1 and args.DynamicFF == 1:
@@ -48,9 +55,8 @@ def search(args):
         savefilename = 'DynamicFF_Demo'
     else:
         savefilename = 'noFF_Demo'
-    savefolder = os.path.join(os.path.dirname(args.normal_weight), 'images', savefilename)
 
-    img_paths = dataset.Datapath(args.path, args.dataset)
+    img_paths = dataset.Datapath(args.val_path, args.dataset)
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -63,10 +69,6 @@ def search(args):
     CANnet.load_state_dict(fix_model_state_dict(torch.load(normal_weights)['state_dict']))
     CANnet.eval()
 
-    transform = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225])
-    ])
     past_output = None
 
     with open(os.path.join(os.path.dirname(args.normal_weight), "staticff_val.pickle"), "rb") as f:
@@ -77,7 +79,7 @@ def search(args):
     static_param = 0
     mae = None
 
-    dynamic_params = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5]
+    dynamic_params = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
     static_params = [0.8, 0.9, 1.0, 1.1, 1.2]
 
     for i_d, d in enumerate(dynamic_params):
@@ -131,9 +133,7 @@ def search(args):
 
 
 def main(args, start, end, static_param, dynamic_param):
-    test_d_path = args.path
     normal_weights = args.normal_weight
-    num = args.img_num
 
     if args.StaticFF == 1 and args.DynamicFF == 1:
         savefilename = 'BothFF_Demo'
@@ -145,12 +145,7 @@ def main(args, start, end, static_param, dynamic_param):
         savefilename = 'noFF_Demo'
     savefolder = os.path.join(os.path.dirname(args.normal_weight), 'images', savefilename)
 
-    # json file contains the test images
-    test_json_path = './movie_data.json'
-    # the floder to output density map and flow maps
-    output_floder = './plot'
-
-    img_paths = dataset.Datapath(args.path, args.dataset)
+    img_paths = dataset.Datapath(args.test_path, args.dataset)
     os.makedirs(savefolder, exist_ok=True)
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -192,7 +187,7 @@ def main(args, start, end, static_param, dynamic_param):
 
     past_output = None
 
-    with open(os.path.join(os.path.dirname(args.normal_weight), "staticff_val.pickle"), "rb") as f:
+    with open(os.path.join(os.path.dirname(args.normal_weight), "staticff_test.pickle"), "rb") as f:
         staticff = pickle.load(f)
 
     pedestrian_num = []
@@ -289,7 +284,8 @@ if __name__ == "__main__":
                                                  In default, path is 'Data/TestData_Path.csv'
                                                  """)
 
-    parser.add_argument('path', default='TestData_Path.csv')  # Testdata path csv
+    parser.add_argument('val_path', default='Val Data_Path.csv')  # val data path csv
+    parser.add_argument('test_path', default='Test Data_Path.csv')  # test data path csv
     parser.add_argument('-wd', '--width', type=int, default=640)  # image width that input to model
     parser.add_argument('-ht', '--height', type=int, default=360)  # image height thta input to model
     parser.add_argument('-nw', '--normal_weight')
@@ -309,12 +305,17 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.dataset == "CrowdFlow":
-        with open(args.path) as f:
+        with open(args.val_path) as f:
             reader = csv.reader(f)
-            pathes = [row for row in reader]
+            val_pathes = [row for row in reader]
+        with open(args.test_path) as f:
+            reader = csv.reader(f)
+            test_pathes = [row for row in reader]
     else:
-        with open(args.path, "r") as f:
-            pathes = json.load(f)
+        with open(args.val_path, "r") as f:
+            val_pathes = json.load(f)
+        with open(args.test_path, "r") as f:
+            test_pathes = json.load(f)
 
     """
     with open(args.cond2res) as f:
@@ -322,9 +323,6 @@ if __name__ == "__main__":
 
     args.res = df[args.imageCond]["cf_{}_{}".format(args.cf, args.cod)]
     """
-
-    # len(pathes)
-    print(len(pathes))
     static_param, dynamic_param = search(args)
     print("best StaticFF param: {}, best DynamicFF param: {}".format(static_param, dynamic_param))
-    main(args, 0, len(pathes), static_param, dynamic_param)
+    main(args, 0, len(test_pathes), static_param, dynamic_param)
