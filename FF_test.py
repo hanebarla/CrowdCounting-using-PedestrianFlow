@@ -222,7 +222,7 @@ def validate(val_list, model, staticff, device, savefolder=None, static_param=1.
     pix_mae = []
     pix_rmse = []
 
-    pred = []
+    pred_scene = []
     gt = []
 
     past_output = None
@@ -280,14 +280,14 @@ def validate(val_list, model, staticff, device, savefolder=None, static_param=1.
         pix_mae.append(mean_absolute_error(target.squeeze(), overall.detach().numpy().copy()))
         pix_rmse.append(np.sqrt(mean_squared_error(target.squeeze(), overall.detach().numpy().copy())))
 
-        pred.append(pred_sum)
+        pred_scene.append(pred_sum)
         gt.append(np.sum(target))
 
 
     #print("pred: {}".format(np.array(pred)))
     #print("target: {}".format(np.array(gt)))
-    mae = mean_absolute_error(pred,gt)
-    rmse = np.sqrt(mean_squared_error(pred,gt))
+    mae = mean_absolute_error(pred_scene, gt)
+    rmse = np.sqrt(mean_squared_error(pred_scene, gt))
     pix_mae_val = np.mean(np.array(pix_mae))
     pix_rmse_val = np.mean(np.array(pix_rmse))
 

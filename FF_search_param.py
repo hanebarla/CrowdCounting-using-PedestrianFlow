@@ -191,6 +191,11 @@ def main(args, start, end, static_param, dynamic_param):
         staticff = pickle.load(f)
 
     pedestrian_num = []
+    pix_mae = []
+    pix_rmse = []
+
+    pred_scene = []
+    gt = []
     for i in range(start, end):
         DemoImg = CompareOutput(img_dict_keys)
 
@@ -273,6 +278,20 @@ def main(args, start, end, static_param, dynamic_param):
 
         DemoImg.plot_img(suptitle=str(args.res))
         DemoImg.save_fig(name=os.path.join(savefolder, 'demo-{}.png'.format(int(i))))
+        pix_mae.append(mean_absolute_error(target.squeeze(), normal_dense))
+        pix_rmse.append(np.sqrt(mean_squared_error(target.squeeze(), normal_dense)))
+
+        pred_scene.append(np.sum(normal_dense))
+        gt.append(np.sum(target))
+
+    mae = mean_absolute_error(pred_scene, gt)
+    rmse = np.sqrt(mean_squared_error(pred_scene, gt))
+    pix_mae_ = np.mean(np.array(pix_mae))
+    pix_rmse_ = np.mean(np.array(pix_rmse))
+
+    with open(os.path.join(savefolder, '{}_test.csv'.format(savefilename)), mode='w') as f:
+        writer = csv.writer(f)
+        writer.writerow([mae, rmse, pix_mae_, pix_rmse_])
 
     print(len(DemoImg.losses_dict['input']))
     print("Scene average pedestrian num: {}".format(sum(pedestrian_num)/len(pedestrian_num)))
