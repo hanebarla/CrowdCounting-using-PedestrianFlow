@@ -1,4 +1,5 @@
 import csv
+from genericpath import isfile
 import os
 from lib.model import CANNet2s
 import pickle
@@ -134,6 +135,11 @@ def main():
     else:
         savefilename = 'noFF_result'
 
+    if os.path.isfile(os.path.join(savefolder, 'ff_param.csv')):
+        with open(os.path.join(savefolder, 'ff_param.csv')) as f:
+            reader = csv.reader(f)
+            static_param, dynamic_param = reader[0][0], reader[0][1]
+
     # choose dataset
     if args.dataset == "FDST":
         with open(args.val_json, 'r') as outfile:
@@ -201,7 +207,7 @@ def main():
         writer.writerow([mae, rmse, pix_mae, pix_rmse])
 
 
-def validate(val_list, model, staticff, device, savefolder=None):
+def validate(val_list, model, staticff, device, savefolder=None, static_param=1.0, dynamic_param=1.0):
     global args
     print('begin val')
     val_dataset = dataset_factory(val_list, args, mode="val")
@@ -229,47 +235,44 @@ def validate(val_list, model, staticff, device, savefolder=None):
         img = img.to(device, dtype=torch.float)
         img = Variable(img)
 
-        with torch.no_grad():
-            prev_flow = model(prev_img, img)
-            prev_flow_inverse = model(img, prev_img)
+        if os.path.isfile(os.path.join(savefolder, "output", "{}.npz".format(i))):
+            pred = np.load(os.path.join(os.path.dirname(args.normal_weight), "output_val", "{}.npz".format(i)))["x"]
+        else:
+            with torch.no_grad():
+                prev_flow = model(prev_img, img)
+                prev_flow_inverse = model(img, prev_img)
 
-        mask_boundry = torch.zeros(prev_flow.shape[2:])
-        mask_boundry[0,:] = 1.0
-        mask_boundry[-1,:] = 1.0
-        mask_boundry[:,0] = 1.0
-        mask_boundry[:,-1] = 1.0
+            mask_boundry = torch.zeros(prev_flow.shape[2:])
+            mask_boundry[0,:] = 1.0
+            mask_boundry[-1,:] = 1.0
+            mask_boundry[:,0] = 1.0
+            mask_boundry[:,-1] = 1.0
 
-        mask_boundry = Variable(mask_boundry.cuda())
-
-        reconstruction_from_prev = F.pad(prev_flow[0,0,1:,1:],(0,1,0,1))+F.pad(prev_flow[0,1,1:,:],(0,0,0,1))+F.pad(prev_flow[0,2,1:,:-1],(1,0,0,1))+F.pad(prev_flow[0,3,:,1:],(0,1,0,0))+prev_flow[0,4,:,:]+F.pad(prev_flow[0,5,:,:-1],(1,0,0,0))+F.pad(prev_flow[0,6,:-1,1:],(0,1,1,0))+F.pad(prev_flow[0,7,:-1,:],(0,0,1,0))+F.pad(prev_flow[0,8,:-1,:-1],(1,0,1,0))+prev_flow[0,9,:,:]*mask_boundry
-        reconstruction_from_prev_inverse = torch.sum(prev_flow_inverse[0,:9,:,:],dim=0)+prev_flow_inverse[0,9,:,:]*mask_boundry
-
-        overall = ((reconstruction_from_prev+reconstruction_from_prev_inverse)/2.0).type(torch.FloatTensor)
-
-        target = target.detach().numpy().copy()
-        pred_sum = overall.detach().numpy().copy()
-
-        if args.StaticFF == 1:
-            prev_flow *= staticff
-            prev_flow_inverse *= staticff
+            mask_boundry = Variable(mask_boundry.cuda())
 
             reconstruction_from_prev = F.pad(prev_flow[0,0,1:,1:],(0,1,0,1))+F.pad(prev_flow[0,1,1:,:],(0,0,0,1))+F.pad(prev_flow[0,2,1:,:-1],(1,0,0,1))+F.pad(prev_flow[0,3,:,1:],(0,1,0,0))+prev_flow[0,4,:,:]+F.pad(prev_flow[0,5,:,:-1],(1,0,0,0))+F.pad(prev_flow[0,6,:-1,1:],(0,1,1,0))+F.pad(prev_flow[0,7,:-1,:],(0,0,1,0))+F.pad(prev_flow[0,8,:-1,:-1],(1,0,1,0))+prev_flow[0,9,:,:]*mask_boundry
             reconstruction_from_prev_inverse = torch.sum(prev_flow_inverse[0,:9,:,:],dim=0)+prev_flow_inverse[0,9,:,:]*mask_boundry
 
             overall = ((reconstruction_from_prev+reconstruction_from_prev_inverse)/2.0).type(torch.FloatTensor)
 
+            pred = overall.detach().numpy().copy()
+        target = target.detach().numpy().copy()
+
+        if args.StaticFF == 1:
+            pred *= static_param*staticff
+
         if args.DynamicFF == 1 and past_output is not None:
             d_t_prev = gaussian_filter(past_output, 3)
             past_output = BETA * overall + (1 - DELTA) * d_t_prev
             # print("past output {}".format(torch.sum(past_output)))
-            overall *= gaussian_filter(past_output, 3)
+            pred *= gaussian_filter(dynamic_param*past_output, 3)
 
         if past_output is None:
-            past_output = BETA * overall.detach().numpy().copy()
+            past_output = BETA * pred
 
-        pred_sum = overall.sum().detach().numpy().copy()
-        if savefolder is not None:
-            save_dir = os.path.join(savefolder, "output")
+        pred_sum = np.sum(pred)
+        save_dir = os.path.join(savefolder, "output")
+        if savefolder is not None and not os.path.isfile(os.path.join(save_dir, "{}.npz".format(i))):
             if not os.path.exists(save_dir):
                 os.makedirs(save_dir)
             np.savez_compressed(os.path.join(save_dir, "{}.npz".format(i)), x=overall.detach().numpy().copy())
