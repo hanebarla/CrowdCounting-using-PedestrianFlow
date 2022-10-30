@@ -138,7 +138,7 @@ def main():
     param_path = os.path.join(savefolder, "images", savefilename.replace("result", "Demo"), 'ff_param.csv')
     if os.path.isfile(param_path):
         print(param_path)
-        with open(os.path.join(savefolder, 'ff_param.csv')) as f:
+        with open(param_path) as f:
             reader = csv.reader(f)
             static_param, dynamic_param = reader[0][0], reader[0][1]
 
