@@ -135,7 +135,8 @@ def main():
     else:
         savefilename = 'noFF_result'
 
-    if os.path.isfile(os.path.join(savefolder, 'ff_param.csv')):
+    param_path = os.path.join(savefolder, "images", savefilename.replace("result", "Demo"), 'ff_param.csv')
+    if os.path.isfile(param_path):
         print(os.path.join(savefolder, "images", savefilename.replace("result", "Demo"), 'ff_param.csv'))
         with open(os.path.join(savefolder, 'ff_param.csv')) as f:
             reader = csv.reader(f)
