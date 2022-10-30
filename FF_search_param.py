@@ -289,7 +289,7 @@ def main(args, start, end, static_param, dynamic_param):
     pix_mae_ = np.mean(np.array(pix_mae))
     pix_rmse_ = np.mean(np.array(pix_rmse))
 
-    with open(os.path.join(savefolder, '{}_test.csv'.format(savefilename)), mode='w') as f:
+    with open(os.path.join(os.path.dirname(args.normal_weight), '{}_result_test.csv'.format(savefilename)), mode='w') as f:
         writer = csv.writer(f)
         writer.writerow([mae, rmse, pix_mae_, pix_rmse_])
 
