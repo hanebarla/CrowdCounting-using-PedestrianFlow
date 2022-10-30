@@ -192,14 +192,14 @@ def main():
 
     torch.backends.cudnn.benchmark = True
 
-    mae, rmse, pix_mae, pix_rmse = validate(val_list, model, staticff, device, static_param=static_param, dynamic_param=dynamic_param)
+    mae, rmse, pix_mae, pix_rmse = validate(val_list, model, staticff, device, static_param=static_param, dynamic_param=dynamic_param, mode="val")
     print(' * best MAE {mae:.3f}, pix MAE {pix_mae:.5f} \n best RMSE {rsme:.3f}, pix RMSE {pix_rmse:.5f}'
           .format(mae=mae, pix_mae=pix_mae, rsme=rmse, pix_rmse=pix_rmse))
     with open(os.path.join(savefolder, '{}_val.csv'.format(savefilename)), mode='w') as f:
         writer = csv.writer(f)
         writer.writerow([mae, rmse, pix_mae, pix_rmse])
 
-    mae, rmse, pix_mae, pix_rmse = validate(test_list, model, staticff, device, savefolder)
+    mae, rmse, pix_mae, pix_rmse = validate(test_list, model, staticff, device, savefolder, static_param=static_param, dynamic_param=dynamic_param)
     print(' * best MAE {mae:.3f}, pix MAE {pix_mae:.5f} \n best RMSE {rsme:.3f}, pix RMSE {pix_rmse:.5f}'
           .format(mae=mae, pix_mae=pix_mae, rsme=rmse, pix_rmse=pix_rmse))
     with open(os.path.join(savefolder, '{}_test.csv'.format(savefilename)), mode='w') as f:
@@ -207,7 +207,7 @@ def main():
         writer.writerow([mae, rmse, pix_mae, pix_rmse])
 
 
-def validate(val_list, model, staticff, device, savefolder=None, static_param=1.0, dynamic_param=1.0):
+def validate(val_list, model, staticff, device, savefolder=None, static_param=1.0, dynamic_param=1.0, mode=""):
     global args
     print('begin val')
     val_dataset = dataset_factory(val_list, args, mode="val")
@@ -235,7 +235,7 @@ def validate(val_list, model, staticff, device, savefolder=None, static_param=1.
         img = img.to(device, dtype=torch.float)
         img = Variable(img)
 
-        if os.path.isfile(os.path.join(savefolder, "output", "{}.npz".format(i))):
+        if os.path.isfile(os.path.join(savefolder, "output_{}".format(mode), "{}.npz".format(i))):
             pred = np.load(os.path.join(os.path.dirname(args.normal_weight), "output_val", "{}.npz".format(i)))["x"]
         else:
             with torch.no_grad():
