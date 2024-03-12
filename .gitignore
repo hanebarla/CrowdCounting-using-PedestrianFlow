@@ -7,3 +7,7 @@ FFtest*.sh
 *.pyc
 fftest_abci_save.sh
 make_staticff.sh
+*.tar
+*.json
+*.sh
+*.zip

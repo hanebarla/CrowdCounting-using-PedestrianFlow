@@ -25,7 +25,8 @@ parser.add_argument('train_json', metavar='TRAIN',
 parser.add_argument('val_json', metavar='VAL',
                     help='path to val json')
 parser.add_argument('--dataset', default="FDST")
-parser.add_argument('--exp', default='.')
+parser.add_argument('--exp', default='/groups1/gca50095/aca10350zi/habara_exp/')
+parser.add_argument('--data_mode', default='once')  # once or add
 parser.add_argument('--myloss', default='0.01')
 parser.add_argument('--start_epoch', default=0, type=int)
 parser.add_argument('--trainmodel', default="CAN")
@@ -36,15 +37,13 @@ parser.add_argument('--bn', default=0, type=int)
 parser.add_argument('--do_rate', default=0.0, type=float)
 parser.add_argument('--pretrained', default=0, type=int)
 
-dloss_on = False
-
+dloss_on = True
 
 def dataset_factory(dlist, arguments, mode="train"):
     if arguments.dataset == "FDST":
         if mode == "train":
             return dataset.listDataset(
                 dlist,
-                shuffle=True,
                 transform=transforms.Compose([
                     transforms.ToTensor(),
                     transforms.Normalize(
@@ -53,13 +52,13 @@ def dataset_factory(dlist, arguments, mode="train"):
                     ),
                 ]),
                 train=True,
+                mode=arguments.data_mode,
                 batch_size=args.batch_size,
                 num_workers=args.workers
             )
         else:
             return dataset.listDataset(
                 dlist,
-                shuffle=False,
                 transform=transforms.Compose([
                     transforms.ToTensor(),
                     transforms.Normalize(
@@ -90,6 +89,31 @@ def dataset_factory(dlist, arguments, mode="train"):
                 )
             ])
         )
+    elif arguments.dataset == "CityStreet":
+        if mode == "train":
+            return dataset.CityStreetDataset(
+                dlist,
+                data_type=arguments.data_mode,
+                transform=transforms.Compose([
+                    transforms.ToTensor(),
+                    transforms.Normalize(
+                        mean=[0.485, 0.456, 0.406],
+                        std=[0.229, 0.224, 0.225]
+                    )
+                ])
+            )
+        else:
+            return dataset.CityStreetDataset(
+                dlist,
+                data_type=arguments.data_mode,
+                transform=transforms.Compose([
+                    transforms.ToTensor(),
+                    transforms.Normalize(
+                        mean=[0.485, 0.456, 0.406],
+                        std=[0.229, 0.224, 0.225]
+                    )
+                ])
+            )
     else:
         raise ValueError
 
@@ -125,24 +149,32 @@ def main():
         args.print_freq = 10
         train_list = args.train_json
         val_list = args.val_json
+    elif args.dataset == "CityStreet":
+        args.print_freq = 50
+        train_list = "/groups1/gca50095/aca10350zi/CityStreet/GT_density_maps/camera_view/train/"
+        val_list = "/groups1/gca50095/aca10350zi/CityStreet/GT_density_maps/camera_view/test/"
     else:
         raise ValueError
 
     if args.lr != 1e-4:
-        args.savefolder = os.path.join(args.exp, args.dataset, args.myloss, 'lr-' + str(args.lr))
+        args.savefolder = os.path.join(args.exp, args.dataset+"_"+args.data_mode, args.myloss, 'lr-' + str(args.lr))
     elif args.opt != "adam":
-        args.savefolder = os.path.join(args.exp, args.dataset, args.myloss, 'opt-' + args.opt)
+        args.savefolder = os.path.join(args.exp, args.dataset+"_"+args.data_mode, args.myloss, 'opt-' + args.opt)
     elif args.activate != "leaky":
-        args.savefolder = os.path.join(args.exp, args.dataset, args.myloss, 'activate-' + args.activate)
+        args.savefolder = os.path.join(args.exp, args.dataset+"_"+args.data_mode, args.myloss, 'activate-' + args.activate)
     elif args.do_rate != 0.0:
-        args.savefolder = os.path.join(args.exp, args.dataset, args.myloss, 'do_rate-' + str(args.do_rate))
+        args.savefolder = os.path.join(args.exp, args.dataset+"_"+args.data_mode, args.myloss, 'do_rate-' + str(args.do_rate))
     elif args.bn != 0:
-        args.savefolder = os.path.join(args.exp, args.dataset, args.myloss, 'bn-' + str(args.bn))
+        args.savefolder = os.path.join(args.exp, args.dataset+"_"+args.data_mode, args.myloss, 'bn-' + str(args.bn))
     else:
-        args.savefolder = os.path.join(args.exp, args.dataset, args.myloss, 'no_change')
+        args.savefolder = os.path.join(args.exp, args.dataset+"_"+args.data_mode, args.myloss, 'no_change')
+
+    if args.dataset == "FDST":
+        args.savefolder = os.path.join(args.exp, "{}_{}_{}".format(args.dataset, args.myloss, args.data_mode))
 
     if not os.path.exists(args.savefolder):
         os.makedirs(args.savefolder)
+    print(args.savefolder)
     # logging.basicConfig(filename=os.path.join(args.savefolder, 'train.log'), level=logging.DEBUG)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -162,6 +194,7 @@ def main():
     elif args.trainmodel == "SimpleCNN":
         model = SimpleCNN()
 
+    train_time = 0
     best_prec1 = 100
     # pretrained
     if os.path.isfile(os.path.join(args.savefolder, 'checkpoint.pth.tar')):
@@ -172,6 +205,7 @@ def main():
         print("Train resumed: {} epoch".format(args.start_epoch))
         best_prec1 = modelbest['val']
         print("best val: {}".format(best_prec1))
+        train_time = modelbest['time']
 
     if torch.cuda.device_count() > 1:
         print("You can use {} GPUs!".format(torch.cuda.device_count()))
@@ -191,18 +225,25 @@ def main():
     torch.backends.cudnn.benchmark = True
 
     for epoch in range(args.start_epoch, args.epochs):
-
+        start_epoch_time = time.time()
         train(train_list, model, criterion, optimizer, epoch, device)
+        end_epoch_time = time.time()
+        epoch_time = end_epoch_time - start_epoch_time
+        train_time += epoch_time
+
         prec1 = validate(val_list, model, criterion, device)
 
         is_best = prec1 < best_prec1
         best_prec1 = min(prec1, best_prec1)
-        print(' * best MAE {mae:.3f} '
-              .format(mae=best_prec1))
+        print(' * best MAE {mae:.3f}, Time {time}'
+              .format(mae=best_prec1, time=train_time))
+        with open(os.path.join(args.savefolder, 'log.txt'), mode='a') as f:
+            f.write("* best MAE {mae:.3f}, Time {time}".format(mae=best_prec1, time=train_time))
         save_checkpoint({
             'state_dict': model.state_dict(),
             'val': prec1.item(),
-            'epoch': epoch
+            'epoch': epoch,
+            'time': train_time
         }, is_best,
             filename=os.path.join(args.savefolder, 'checkpoint.pth.tar'),
             bestname=os.path.join(args.savefolder, 'model_best.pth.tar'))

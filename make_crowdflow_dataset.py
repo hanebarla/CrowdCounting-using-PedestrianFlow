@@ -29,7 +29,8 @@ def main():
                                                  Please specify the root folder of the Datasets.
                                                  In default, path is 'E:/Dataset/TUBCrowdFlow/'
                                                  """)
-    parser.add_argument('-p', '--path', default='E:/Dataset/TUBCrowdFlow/')
+    parser.add_argument('-p', '--path', default='/groups1/gca50095/aca10350zi/TUBCrowdFlow/')
+    parser.add_argument('--mode', default="once")
     args = parser.parse_args()
 
     AllPathList = []
@@ -42,7 +43,8 @@ def main():
     frame_num_list = [300, 300, 250, 300, 450]
     DatasetFolder = args.path
     ImgFolder = DatasetFolder + "images/"
-    GTTrajFolder = DatasetFolder + "gt_trajectories/"
+    # GTTrajFolder = DatasetFolder + "gt_trajectories/"
+    GTTrajFolder = DatasetFolder + "ff_{}/".format(args.mode)
     GTFlowFolder = DatasetFolder + "gt_flow/"
     GTPersonFolder = "PersonTrajectories/"
     SceneFolderNameLis = [
@@ -56,7 +58,8 @@ def main():
     bar = Bar('Makeing csv... ', max=len(SceneFolderNameLis))
     for i, scene in enumerate(SceneFolderNameLis):
         frame_num = frame_num_list[int(i / 2)]
-        gtTraj_img_path = GTTrajFolder + scene + GTPersonFolder
+        # gtTraj_img_path = GTTrajFolder + scene + GTPersonFolder
+        gtTraj_img_path = GTTrajFolder + scene
 
         tmpPathList = []
         tmpPathDict = {}
@@ -70,9 +73,12 @@ def main():
             tm_img_path = ImgFolder + scene + "frame_{:0=4}.png".format(tm)
             tp_img_path = ImgFolder + scene + "frame_{:0=4}.png".format(tp)
 
-            t_person_img_path = gtTraj_img_path + "PersonTrajectories_frame_{:0=4}.png".format(t)
-            tm_person_img_path = gtTraj_img_path + "PersonTrajectories_frame_{:0=4}.png".format(tm)
-            tp_person_img_path = gtTraj_img_path + "PersonTrajectories_frame_{:0=4}.png".format(tp)
+            # t_person_img_path = gtTraj_img_path + "PersonTrajectories_frame_{:0=4}.png".format(t)
+            t_person_img_path = gtTraj_img_path + "{}_45x80.npz".format(t)
+            # tm_person_img_path = gtTraj_img_path + "PersonTrajectories_frame_{:0=4}.png".format(tm)
+            tm_person_img_path = gtTraj_img_path + "{}_45x80.npz".format(tm)
+            # tp_person_img_path = gtTraj_img_path + "PersonTrajectories_frame_{:0=4}.png".format(tp)
+            tp_person_img_path = gtTraj_img_path + "{}_45x80.npz".format(tp)
 
             tm2t_flow_path = GTFlowFolder + scene + "frameGT_{:0=4}.png".format(tm)
             t2tp_flow_path = GTFlowFolder + scene + "frameGT_{:0=4}.png".format(t)
@@ -119,7 +125,7 @@ def main():
                 TestPathList.append(t_img_path)
                 TestPathDict[t_img_path] = t_PathList_per_frame
 
-        with open("Scene_{}.csv".format(scene.replace("/", "")), "w", newline='') as f:
+        with open("Scene_{}_{}.csv".format(scene.replace("/", ""), args.mode), "w", newline='') as f:
             writer = csv.writer(f)
             for path in tmpPathList:
                 writer.writerow(tmpPathDict[path])
@@ -127,6 +133,7 @@ def main():
         bar.next()
     bar.finish()
 
+    """
     random.shuffle(TrainPathList)
     with open("TrainData_Path.csv", "w", newline='') as f:
         writer = csv.writer(f)
@@ -144,7 +151,7 @@ def main():
             writer.writerow(AllPathDict[path])
 
     print("Done")
-
+    """
 
 if __name__ == "__main__":
     main()

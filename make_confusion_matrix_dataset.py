@@ -23,21 +23,21 @@ def csv_file_concat(file_list, file_name):
 def cross_dataset(args, train_list, val_list, test_list, concat_file_index):
     train_file_list = []
     for file_name in train_list:
-        train_file_list.append(os.path.join(args.savefolder, 'Scene_IM0{}.csv'.format(file_name)))
-        train_file_list.append(os.path.join(args.savefolder, 'Scene_IM0{}_hDyn.csv'.format(file_name)))
-    csv_file_concat(train_file_list, os.path.join(args.savefolder, '{}_train.csv'.format(concat_file_index)))
+        train_file_list.append(os.path.join(args.savefolder, 'Scene_IM0{}_{}.csv'.format(file_name, args.mode)))
+        train_file_list.append(os.path.join(args.savefolder, 'Scene_IM0{}_hDyn_{}.csv'.format(file_name, args.mode)))
+    csv_file_concat(train_file_list, os.path.join(args.savefolder, '{}_train_{}.csv'.format(concat_file_index, args.mode)))
 
     val_file_list = []
     for file_name in val_list:
-        val_file_list.append(os.path.join(args.savefolder, 'Scene_IM0{}.csv'.format(file_name)))
-        val_file_list.append(os.path.join(args.savefolder, 'Scene_IM0{}_hDyn.csv'.format(file_name)))
-    csv_file_concat(val_file_list, os.path.join(args.savefolder, '{}_val.csv'.format(concat_file_index)))
+        val_file_list.append(os.path.join(args.savefolder, 'Scene_IM0{}_{}.csv'.format(file_name, args.mode)))
+        val_file_list.append(os.path.join(args.savefolder, 'Scene_IM0{}_hDyn_{}.csv'.format(file_name, args.mode)))
+    csv_file_concat(val_file_list, os.path.join(args.savefolder, '{}_val_{}.csv'.format(concat_file_index, args.mode)))
 
     test_file_list = []
     for file_name in test_list:
-        test_file_list.append(os.path.join(args.savefolder, 'Scene_IM0{}.csv'.format(file_name)))
-        test_file_list.append(os.path.join(args.savefolder, 'Scene_IM0{}_hDyn.csv'.format(file_name)))
-    csv_file_concat(test_file_list, os.path.join(args.savefolder, '{}_test.csv'.format(concat_file_index)))
+        test_file_list.append(os.path.join(args.savefolder, 'Scene_IM0{}_{}.csv'.format(file_name, args.mode)))
+        test_file_list.append(os.path.join(args.savefolder, 'Scene_IM0{}_hDyn_{}.csv'.format(file_name, args.mode)))
+    csv_file_concat(test_file_list, os.path.join(args.savefolder, '{}_test_{}.csv'.format(concat_file_index, args.mode)))
 
 
 def main(args):
@@ -70,6 +70,7 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('savefolder', help='path to csv folder')
+    parser.add_argument('mode', default="once")
     args = parser.parse_args()
 
     main(args=args)

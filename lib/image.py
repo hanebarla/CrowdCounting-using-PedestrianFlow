@@ -5,7 +5,7 @@ import h5py
 import cv2
 
 
-def load_data(img_path, train=True):
+def load_data(img_path, train=True, mode="once"):
     img_folder = os.path.dirname(img_path)
     img_name = os.path.basename(img_path)
     if '(1)' in img_name:
@@ -21,7 +21,12 @@ def load_data(img_path, train=True):
     prev_img_path = os.path.join(img_folder, '%03d.jpg' % (prev_index))
     post_img_path = os.path.join(img_folder, '%03d.jpg' % (post_index))
 
-    gt_path = img_path.replace('.jpg', '_resize.h5')
+    if mode == "once":
+        gt_path = img_path.replace('.jpg', '_resize.h5')
+    elif mode == "add":
+        gt_path = img_path.replace('.jpg', '_resize_add.h5')
+    else:
+        raise ValueError
 
     prev_img = Image.open(prev_img_path).convert('RGB')
     img = Image.open(img_path).convert('RGB')

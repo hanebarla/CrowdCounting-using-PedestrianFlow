@@ -4,6 +4,7 @@ import json
 import PIL.Image as Image
 import numpy as np
 import os
+import cv2
 from lib.model import CANNet2s
 import torch
 from torch.autograd import Variable
@@ -24,18 +25,21 @@ transform = transforms.Compose([
 ])
 
 # the json file contains path of test images
-test_json_path = './venice_test.json'
+test_json_path = './test.json'
 
 with open(test_json_path, 'r') as outfile:
     img_paths = json.load(outfile)
 
 
-model = CANNet2s()
+model = CANNet2s(activate="relu")
 
 model = model.cuda()
 
 # modify the path of saved checkpoint if necessary
-checkpoint = torch.load('fdst.pth.tar')
+mode = "add"
+penalty = 0
+checkpoint = torch.load('/groups1/gca50095/aca10350zi/habara_exp/FDST_{}_{}/model_best.pth.tar'.format(penalty, mode))
+# checkpoint = torch.load('fdst.pth.tar')
 
 model.load_state_dict(fix_model_state_dict(checkpoint['state_dict']))
 
@@ -46,6 +50,7 @@ gt = []
 
 for i in range(len(img_paths)):
     img_path = img_paths[i]
+    print(img_path)
 
     img_folder = os.path.dirname(img_path)
     img_name = os.path.basename(img_path)
@@ -53,7 +58,7 @@ for i in range(len(img_paths)):
 
     prev_index = int(max(1, index - 5))
 
-    prev_img_path = os.path.join(img_folder, ' %03d.jpg' % (prev_index))
+    prev_img_path = os.path.join(img_folder, '%03d.jpg' % (prev_index))
 
     prev_img = Image.open(prev_img_path).convert('RGB')
     img = Image.open(img_path).convert('RGB')
@@ -64,9 +69,12 @@ for i in range(len(img_paths)):
     prev_img = transform(prev_img).cuda()
     img = transform(img).cuda()
 
-    gt_path = img_path.replace('.jpg', '_resize.h5')
+    gt_path = img_path.replace('.jpg', '_resize_add.h5')
     gt_file = h5py.File(gt_path)
     target = np.asarray(gt_file['density'])
+    # target = cv2.resize(target,(int(target.shape[1]/8),int(target.shape[0]/8)),interpolation = cv2.INTER_CUBIC)*64
+    # print(target.shape)
+    # raise ValueError
 
     prev_img = prev_img.cuda()
     prev_img = Variable(prev_img)
@@ -102,9 +110,12 @@ for i in range(len(img_paths)):
     reconstruction_from_prev_inverse = torch.sum(prev_flow_inverse[0, :9, :, :], dim=0) + prev_flow_inverse[0, 9, :, :] * mask_boundry
 
     overall = ((reconstruction_from_prev + reconstruction_from_prev_inverse) / 2.0).data.cpu().numpy()
+    output_path = img_path.replace('.jpg','_{}_output_{}.npz'.format(penalty, mode))
+    np.savez_compressed(output_path, y=overall)
     target = target
 
     pred_sum = overall.sum()
+    print(pred_sum, np.sum(target))
     pred.append(pred_sum)
     gt.append(np.sum(target))
 

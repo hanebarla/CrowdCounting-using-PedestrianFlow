@@ -18,7 +18,7 @@ from scipy.ndimage.filters import gaussian_filter
 
 
 class listDataset(Dataset):
-    def __init__(self, root, shape=None, transform=None, train=False):
+    def __init__(self, root, shape=None, transform=None, train=False, mode="once", batch_size=1, num_workers=4):
         if train:
             random.shuffle(root)
 
@@ -27,6 +27,9 @@ class listDataset(Dataset):
         self.transform = transform
         self.train = train
         self.shape = shape
+        self.mode = mode
+        self.batch_size = batch_size
+        self.num_workers = num_workers
 
     def __len__(self):
         return self.nSamples
@@ -36,7 +39,7 @@ class listDataset(Dataset):
 
         img_path = self.lines[index]
 
-        prev_img, img, post_img, target = load_data(img_path, self.train)
+        prev_img, img, post_img, target = load_data(img_path, self.train, self.mode)
 
         if self.transform is not None:
             prev_img = self.transform(prev_img)
@@ -50,7 +53,7 @@ IP = {0: 202.5, 1: 247.5, 2: 292.5, 3: 157.5, 5: 337.5, 6: 22.5, 7: 67.5, 8: 112
 
 
 class CrowdDatasets(torch.utils.data.Dataset):
-    def __init__(self, Trainpath="Data/TrainData_Path.csv", transform=None, width=640, height=360, test_on=False):
+    def __init__(self, Trainpath="Data/TrainData_Path.csv", transform=None, width=640, height=360, test_on=False, add=False):
         super().__init__()
         self.transform = transform
         self.width = width
@@ -58,6 +61,7 @@ class CrowdDatasets(torch.utils.data.Dataset):
         self.out_width = int(width / 8)
         self.out_height = int(height / 8)
         self.test_on = test_on
+        self.add = add
         with open(Trainpath) as f:
             reader = csv.reader(f)
             self.Pathes = [row for row in reader]
@@ -96,9 +100,14 @@ class CrowdDatasets(torch.utils.data.Dataset):
         t_p_person_path = pathlist[6]
         t_t_p_flow_path = pathlist[7]
 
-        t_input, t_person = self.gt_img_density(t_img_path, t_person_path)
-        tm_input, tm_person = self.gt_img_density(t_m_img_path, t_m_person_path)
-        tp_input, tp_person = self.gt_img_density(t_p_img_path, t_p_person_path)
+        if self.add:
+            t_input, t_person = self.gt_npz_density(t_img_path, t_person_path)
+            tm_input, tm_person = self.gt_npz_density(t_m_img_path, t_m_person_path)
+            tp_input, tp_person = self.gt_npz_density(t_p_img_path, t_p_person_path)
+        else:
+            t_input, t_person = self.gt_img_density(t_img_path, t_person_path)
+            tm_input, tm_person = self.gt_img_density(t_m_img_path, t_m_person_path)
+            tp_input, tp_person = self.gt_img_density(t_p_img_path, t_p_person_path)
 
         # tm2t_flow = self.gt_flow(t_m_t_flow_path)
         # t2tp_flow = self.gt_flow(t_t_p_flow_path)
@@ -166,6 +175,26 @@ class CrowdDatasets(torch.utils.data.Dataset):
 
         return gt_flow_img_data
 
+    def gt_npz_density(self, img_path, gt_path):
+        # print(gt_path)
+        if not os.path.isfile(img_path):
+            return print("No such file: {}".format(img_path))
+        if not os.path.isfile(gt_path):
+            return print("No such file: {}".format(gt_path))
+
+        input_img = cv2.imread(img_path)
+        input_img = cv2.resize(input_img, (self.width, self.height))  # width, height
+        input_img = cv2.cvtColor(input_img, cv2.COLOR_BGR2RGB)
+        input_img = input_img / 255  # range [0:1]
+        input_img = self.transform(input_img)
+
+        gt = np.load(gt_path)["x"]
+        # print(gt)
+        gt = torch.from_numpy(gt.astype(np.float32)).clone()
+
+        return input_img, gt
+
+
     def gt_img_density(self, img_path, mask_path):
 
         if not os.path.isfile(img_path):
@@ -193,6 +222,98 @@ class CrowdDatasets(torch.utils.data.Dataset):
 
         return input_img, mask_img
 
+class CityStreetDataset(Dataset):
+    def __init__(self, data_dir, data_type, transform=None, scene=None):
+        super().__init__()
+
+        self.data_dir = data_dir
+        self.data_type = data_type
+        self.transform = None
+        self.scene = scene
+
+        self.v1_imgs, self.v1_targets = self._load_h5file("ff_view1.h5")
+        self.v2_imgs, self.v2_targets = self._load_h5file("ff_view2.h5")
+        self.v3_imgs, self.v3_targets = self._load_h5file("ff_view3.h5")
+
+        # self.imgs = np.concatenate([v1_imgs, v2_imgs, v3_imgs])
+        # self.targets = np.concatenate([v1_targets, v2_targets, v3_targets])
+
+    def __len__(self):
+        if self.scene is None:
+            return (self.v1_imgs.shape[0] - 2) + (self.v2_imgs.shape[0] - 2) + (self.v3_imgs.shape[0] - 2)
+        elif self.scene == "view1":
+            return self.v1_imgs.shape[0] - 2
+        elif self.scene == "view2":
+            return self.v2_imgs.shape[0] - 2
+        elif self.scene == "view3":
+            return self.v3_imgs.shape[0] - 2
+        else:
+            raise ValueError
+
+    def __getitem__(self, index: int):
+        if self.scene is None:
+            prev_img, img, post_img, target = self._get_whole_scene_item(index)
+        elif self.scene == "view1":
+            prev_img = self.v1_imgs[index]
+            img = self.v1_imgs[index+1]
+            post_img = self.v1_imgs[index+2]
+            target = self.v1_targets[index]
+        elif self.scene == "view2":
+            prev_img = self.v2_imgs[index]
+            img = self.v2_imgs[index+1]
+            post_img = self.v2_imgs[index+2]
+            target = self.v2_targets[index]
+        elif self.scene == "view3":
+            prev_img = self.v3_imgs[index]
+            img = self.v3_imgs[index+1]
+            post_img = self.v3_imgs[index+2]
+            target = self.v3_targets[index]
+
+        prev_img = torch.from_numpy(prev_img.astype(np.float32)).clone()
+        img = torch.from_numpy(img.astype(np.float32)).clone()
+        post_img = torch.from_numpy(post_img.astype(np.float32)).clone()
+        target = torch.from_numpy(target.astype(np.float32)).clone()
+
+        prev_img = torch.permute(prev_img, (2, 0, 1))
+        img = torch.permute(img, (2, 0 ,1))
+        post_img = torch.permute(post_img, (2, 0, 1))
+        target = torch.permute(target, (2, 0, 1))
+
+        if self.transform is not None:
+            prev_img = self.transform(prev_img)
+            img = self.transform(img)
+            post_img = self.transform(post_img)
+
+        return prev_img, img, post_img, target
+
+    def _get_whole_scene_item(self, index: int):
+        if index < (self.v1_imgs.shape[0] - 2):
+            offset = 0
+            prev_img = self.v1_imgs[index - offset]
+            img = self.v1_imgs[index - offset + 1]
+            post_img = self.v1_imgs[index - offset + 2]
+            target = self.v1_targets[index - offset + 1]
+        elif index < (self.v1_imgs.shape[0] - 2) + (self.v2_imgs.shape[0] - 2):
+            offset = (self.v1_imgs.shape[0] - 2)
+            prev_img = self.v2_imgs[index - offset]
+            img = self.v2_imgs[index - offset + 1]
+            post_img = self.v2_imgs[index - offset + 2]
+            target = self.v2_targets[index - offset + 1]
+        else:
+            offset = (self.v1_imgs.shape[0] - 2) + (self.v2_imgs.shape[0] - 2)
+            prev_img = self.v3_imgs[index - offset]
+            img = self.v3_imgs[index - offset + 1]
+            post_img = self.v3_imgs[index - offset + 2]
+            target = self.v3_targets[index - offset + 1]
+
+        return prev_img, img, post_img, target
+
+    def _load_h5file(self, file_name):
+        with h5py.File(os.path.join(self.data_dir, file_name), "r") as f:
+            tmp_imgs = np.array(f['imgs'])
+            tmp_targets = np.array(f["density_{}".format(self.data_type)])  # data_type: once or add
+
+        return tmp_imgs, tmp_targets
 
 class VeniceDataset(Dataset):
     def __init__(self, pathjson=None, transform=None, width=640, height=360) -> None:
@@ -301,7 +422,7 @@ def get_test_dataset(datakind, datalist):
 
 
 class Datapath():
-    def __init__(self, json_path=None, datakind=None) -> None:
+    def __init__(self, json_path=None, datakind=None, mode="once") -> None:
         if datakind == "CrowdFlow":
             with open(json_path) as f:
                 reader = csv.reader(f)
@@ -310,6 +431,7 @@ class Datapath():
             with open(json_path, 'r') as outfile:
                 self.img_paths = json.load(outfile)
         self.datakind = datakind
+        self.mode = mode
 
     def __getitem__(self, index):
         if self.datakind == "FDST":
@@ -345,9 +467,12 @@ class Datapath():
             prev_img = Image.open(t_m_img_path).convert('RGB')
             img = Image.open(t_img_path).convert('RGB')
 
-            target = cv2.imread(t_person_path, 0)
-            target = target / np.max(target)
-            target = cv2.resize(target, (80, 45), interpolation=cv2.INTER_CUBIC)  # width, height
+            if self.mode == "once":
+                target = cv2.imread(t_person_path, 0)
+                target = target / np.max(target)
+                target = cv2.resize(target, (80, 45), interpolation=cv2.INTER_CUBIC)  # width, height
+            else:
+                target = np.load(t_person_path)["x"]
 
             return prev_img, img, target
 
@@ -381,3 +506,4 @@ class Datapath():
             img = Image.open(now_path).convert('RGB')
 
             return prev_img, img, target
+

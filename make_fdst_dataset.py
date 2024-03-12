@@ -8,7 +8,7 @@ import json
 from lib.image import *
 
 # set the root to the path of FDST dataset you download
-root = '/home/data/FDST/'
+root = '/groups1/gca50095/aca10350zi/FDST/our_dataset'
 
 # now generate the FDST's ground truth
 train_folder = os.path.join(root, 'train_data')
@@ -36,8 +36,9 @@ for img_path in img_paths:
     for i in range(0, len(anno_list)):
         y_anno = min(int(anno_list[i]['shape_attributes']['y']/rate_h),360)
         x_anno = min(int(anno_list[i]['shape_attributes']['x']/rate_w),640)
-        k[y_anno, x_anno] = 1
+        # k[y_anno, x_anno] = 1
+        k[y_anno, x_anno] += 1
     k = gaussian_filter(k, 3)
-    with h5py.File(img_path.replace('.jpg', '_resize.h5'), 'w') as hf:
+    with h5py.File(img_path.replace('.jpg', '_resize_add.h5'), 'w') as hf:
         hf['density'] = k
         hf.close()

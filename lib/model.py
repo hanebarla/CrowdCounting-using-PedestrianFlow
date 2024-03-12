@@ -55,7 +55,7 @@ class CANNet2s(nn.Module):
             self.activate = nn.ReLU()
         self.relu = nn.ReLU()
         if not load_weights:
-            mod = models.vgg16(pretrained=True)
+            mod = models.vgg16(weights=models.VGG16_Weights.DEFAULT)
             self._initialize_weights()
             # address the mismatch in key names for python 3
             pretrained_dict = {k[9:]: v for k, v in mod.state_dict().items() if k[9:] in self.frontend.state_dict()}

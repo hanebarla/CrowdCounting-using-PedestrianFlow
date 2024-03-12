@@ -49,12 +49,11 @@ def dataset_factory(dlist, arguments, mode="train"):
                                        num_workers=args.workers)
         else:
             return dataset.listDataset(dlist,
-                                       shuffle=False,
                                        transform=transforms.Compose([
                                            transforms.ToTensor(),
                                            transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                            std=[0.229, 0.224, 0.225]),
-                                       ]), train=False)
+                                       ]), train=False, mode="add")
     elif arguments.dataset == "CrowdFlow":
         return dataset.CrowdDatasets(dlist,
                                      transform=transforms.Compose([
@@ -150,10 +149,10 @@ def main():
 
     torch.backends.cudnn.benchmark = True
 
-    mae, rsme, pix_mae, pix_rmse = validate(val_list, model, criterion, device)
+    mae, mae_std, rsme, rsme_std, pix_mae, pix_mae_std, pix_rsme, pix_rsme_std = validate(val_list, model, criterion, device)
 
-    print(' * best MAE {mae:.3f}, pix MAE {pix_mae:.5f} \n best RMSE {rsme:.3f}, pix RMSE {pix_rmse:.5f}'
-          .format(mae=mae, pix_mae=pix_mae, rsme=rsme, pix_rmse=pix_rmse))
+    print('best MAE {mae:.3f} ({mae_std:.5f}), pix MAE {pix_mae:.5f} ({pix_mae_std:.5f}) \n best RMSE {rsme:.3f} ({rsme_std:.5f}), pix RMSE {pix_rmse:.5f} ({pix_rsme_std:.5f})'
+          .format(mae=mae, mae_std=mae_std, pix_mae=pix_mae, pix_mae_std=pix_mae_std, rsme=rsme, rsme_std=rsme_std, pix_rmse=pix_rsme, pix_rsme_std=pix_rsme_std))
 
 
 def validate(val_list, model, criterion, device):
@@ -239,12 +238,26 @@ def validate(val_list, model, criterion, device):
 
     #print("pred: {}".format(np.array(pred)))
     #print("target: {}".format(np.array(gt)))
-    mae = mean_absolute_error(pred,gt)
-    rmse = np.sqrt(mean_squared_error(pred,gt))
-    pix_mae_val = np.mean(np.array(pix_mae))
-    pix_rmse_val = np.mean(np.array(pix_rmse))
+    # mae = mean_absolute_error(pred,gt)
+    # rmse = np.sqrt(mean_squared_error(pred,gt))
+    # pix_mae_val = np.mean(np.array(pix_mae))
+    # pix_rmse_val = np.mean(np.array(pix_rmse))
+    abs_diff = np.abs(np.array(pred)-np.array(gt))
+    mae = np.nanmean(abs_diff)
+    # mae = mean_absolute_error(pred_scene, gt)
+    mae_std = np.nanstd(abs_diff)
+    # var = np.var(np.array(pred))
+    squared_diff = np.square(np.array(pred)-np.array(gt))
+    # rmse = np.sqrt(mean_squared_error(pred_scene, gt))
+    rmse = np.sqrt(np.array(np.nanmean(squared_diff)))
+    rmse_std = np.sqrt(np.array(np.nanstd(squared_diff)))
+    pix_mae_val = np.nanmean(np.array(pix_mae))
+    pix_mae_val_std = np.nanstd(np.array(pix_mae))
+    pix_rmse_val = np.nanmean(np.array(pix_rmse))
+    pix_rmse_val_std = np.nanstd(np.array(pix_rmse))
+    # pix_var_val = np.nanmean(np.array(pix_var))
 
-    return mae, rmse, pix_mae_val, pix_rmse_val
+    return mae, mae_std, rmse, rmse_std, pix_mae_val, pix_mae_val_std, pix_rmse_val, pix_rmse_val_std
 
 if __name__ == "__main__":
     main()
